@@ -1,3 +1,5 @@
+<!-- remote_desk 应用列表页：面板色标题栏（主机名大标题）+ 应用磁贴网格。
+     控件 ID（appFragmentContainer/appListText）保持不变。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -15,17 +17,24 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
         android:layout_below="@+id/appListText"/>
-    
+
     <TextView
         android:id="@+id/appListText"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"
-        android:gravity="center"
-        android:paddingTop="5dp"
-        android:paddingBottom="5dp"
+        android:layout_centerHorizontal="true"
+        android:gravity="center_vertical|start"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:background="@color/rd_surface"
         android:preferKeepClear="true"
-        android:textSize="28sp"/>
+        android:textColor="@color/rd_text"
+        android:textSize="24sp"
+        android:textStyle="bold"/>
 
 </RelativeLayout>

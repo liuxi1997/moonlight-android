@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    remote_desk 设计令牌 · 色板（docs/04 §四「UI 审美升级方案」单一事实源）
+    深色优先 + 单一强调色；浮层（把手/面板/LR 钮）绘制统一从这里取色。
+-->
+<resources>
+    <!-- 背景 -->
+    <color name="rd_bg">#0F1115</color>
+    <!-- 面板底色 + 85% 不透明毛玻璃变体 -->
+    <color name="rd_surface">#1A1D24</color>
+    <color name="rd_surface_85">#D91A1D24</color>
+    <!-- 强调（选中/按下态） -->
+    <color name="rd_accent">#3B82F6</color>
+    <color name="rd_accent_dark">#2563EB</color>
+    <!-- 卡片按压态提亮 -->
+    <color name="rd_surface_pressed">#232733</color>
+    <!-- 成功（状态提示） -->
+    <color name="rd_success">#22C55E</color>
+    <!-- 主文字 -->
+    <color name="rd_text">#E5E7EB</color>
+    <!-- 次要文字 / 离线状态点 -->
+    <color name="rd_text_secondary">#9CA3AF</color>
+    <color name="rd_offline">#6B7280</color>
+</resources>

@@ -1,42 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- remote_desk 主机卡片：#1A1D24 圆角 16dp 底、主机名加粗、右上角在线/离线状态色点
+     （颜色由 PcGridAdapter.populateView 绑定）。控件 ID（grid_image/grid_overlay/grid_spinner/grid_text）保持不变。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="20dp">
+    android:padding="8dp">
     <RelativeLayout
-        android:id="@+id/grid_image_layout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
-        <ImageView
-            android:id="@+id/grid_image"
-            android:layout_centerHorizontal="true"
-            android:layout_width="125dp"
-            android:layout_height="125dp">
-        </ImageView>
-        <ImageView
-            android:id="@+id/grid_overlay"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="28dp"
-            android:layout_width="50dp"
-            android:layout_height="50dp">
-        </ImageView>
-        <ProgressBar
-            android:id="@+id/grid_spinner"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="28dp"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:indeterminate="true">
-        </ProgressBar>
-    </RelativeLayout>
-    <TextView
-        android:id="@+id/grid_text"
-        android:layout_width="125dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/grid_image_layout"
-        android:layout_marginTop="10dp"
-        android:layout_centerHorizontal="true"
-        android:gravity="center"
-        android:textSize="18sp" >
-    </TextView>
+        android:background="@drawable/rd_bg_card"
+        android:padding="12dp"
+        android:paddingBottom="14dp">
+        <View
+            android:id="@+id/rd_status_dot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="6dp"
+            android:layout_marginRight="6dp"
+            android:background="@drawable/rd_dot_offline"/>
+        <RelativeLayout
+            android:id="@+id/grid_image_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true">
+            <ImageView
+                android:id="@+id/grid_image"
+                android:layout_centerHorizontal="true"
+                android:layout_width="96dp"
+                android:layout_height="96dp">
+            </ImageView>
+            <ImageView
+                android:id="@+id/grid_overlay"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="28dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp">
+            </ImageView>
+            <ProgressBar
+                android:id="@+id/grid_spinner"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="28dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:indeterminate="true">
+            </ProgressBar>
+        </RelativeLayout>
+        <TextView
+            android:id="@+id/grid_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/grid_image_layout"
+            android:layout_marginTop="10dp"
+            android:layout_centerHorizontal="true"
+            android:gravity="center"
+            android:textColor="@color/rd_text"
+            android:textSize="16sp"
+            android:textStyle="bold" >
+        </TextView>
+    </RelativeLayout>
 </RelativeLayout>

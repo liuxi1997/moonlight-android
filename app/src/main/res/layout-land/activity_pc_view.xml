@@ -1,3 +1,5 @@
+<!-- Landscape orientation. remote_desk 深色重构：保留左侧按钮竖排（TV D-pad 焦点习惯），
+     顶部加大标题；添加主机钮改为强调色大圆钮。控件 ID 全部保持不变。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,13 +9,27 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".PcView" >
 
+    <TextView
+        android:id="@+id/rd_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
+        android:text="@string/rd_main_title"
+        android:textColor="@color/rd_text"
+        android:textSize="24sp"
+        android:textStyle="bold"/>
+
     <RelativeLayout
         android:id="@+id/pcFragmentContainer"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
+        android:layout_below="@id/rd_title"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
         android:layout_toRightOf="@+id/settingsButton"
         android:layout_toEndOf="@+id/settingsButton">
 
@@ -37,6 +53,7 @@
                 android:layout_marginStart="10dp"
                 android:layout_centerVertical="true"
                 android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/rd_text"
                 android:gravity="center"
                 android:text="@string/searching_pc"/>
         </RelativeLayout>
@@ -45,40 +62,42 @@
 
     <ImageButton
         android:id="@+id/settingsButton"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
-        android:cropToPadding="false"
-        android:scaleType="fitXY"
-        android:nextFocusForward="@id/helpButton"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_below="@id/rd_title"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentTop="true"
+        android:layout_marginTop="8dp"
+        android:scaleType="fitCenter"
+        android:padding="12dp"
         android:src="@drawable/ic_settings"
         style="?android:attr/borderlessButtonStyle"/>
 
     <ImageButton
         android:id="@+id/helpButton"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
-        android:cropToPadding="false"
-        android:scaleType="fitXY"
-        android:nextFocusForward="@id/manuallyAddPc"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_below="@id/settingsButton"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
-        android:layout_below="@id/settingsButton"
+        android:layout_marginTop="4dp"
+        android:scaleType="fitCenter"
+        android:padding="12dp"
         android:src="@drawable/ic_help"
         style="?android:attr/borderlessButtonStyle"/>
 
+    <!-- 添加主机：强调色大圆钮 -->
     <ImageButton
         android:id="@+id/manuallyAddPc"
-        android:layout_width="70dp"
-        android:layout_height="65dp"
-        android:cropToPadding="false"
-        android:scaleType="fitXY"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_below="@id/helpButton"
         android:layout_alignParentStart="true"
         android:layout_alignParentLeft="true"
-        android:layout_below="@id/helpButton"
-        android:src="@drawable/ic_add"
-        style="?android:attr/borderlessButtonStyle"/>
+        android:layout_marginTop="12dp"
+        android:background="@drawable/rd_bg_fab"
+        android:scaleType="center"
+        android:src="@drawable/ic_add_plain"
+        android:elevation="8dp"/>
 
 </RelativeLayout>

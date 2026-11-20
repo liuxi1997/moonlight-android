@@ -1,29 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- remote_desk 应用磁贴（小图模式）：与标准磁贴同款圆角卡片样式。
+     控件 ID（grid_image/grid_overlay/grid_text）保持不变。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="100dp"
     android:layout_height="133dp"
-    android:padding="5dp">
-    <ImageView
-        android:id="@+id/grid_image"
-        android:cropToPadding="false"
-        android:scaleType="fitXY"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-    </ImageView>
-    <ImageView
-        android:id="@+id/grid_overlay"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="10dp"
-        android:layout_width="33dp"
-        android:layout_height="33dp">
-    </ImageView>
-    <TextView
-        android:id="@+id/grid_text"
+    android:padding="4dp">
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/grid_overlay"
-        android:layout_margin="5dp"
-        android:gravity="center"
-        android:textSize="14sp">
-    </TextView>
+        android:background="@drawable/rd_bg_card"
+        android:padding="6dp">
+        <ImageView
+            android:id="@+id/grid_image"
+            android:cropToPadding="false"
+            android:scaleType="fitXY"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </ImageView>
+        <ImageView
+            android:id="@+id/grid_overlay"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="8dp"
+            android:layout_width="33dp"
+            android:layout_height="33dp">
+        </ImageView>
+        <TextView
+            android:id="@+id/grid_text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/grid_overlay"
+            android:layout_margin="4dp"
+            android:gravity="center"
+            android:textColor="@color/rd_text"
+            android:textSize="14sp"
+            android:textStyle="bold">
+        </TextView>
+    </RelativeLayout>
 </RelativeLayout>

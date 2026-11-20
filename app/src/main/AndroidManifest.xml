@@ -186,6 +186,17 @@
             <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
             <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
         </activity>
+        <!-- remote_desk fork: 文件桥发送页（G 线）。由 Game 面板「发文件」钮启动（A 线挂载，Game.java 不在本线），
+             启动 extras 见 FileSendActivity 常量；SAF 用户授权制选文件，无需存储类权限 -->
+        <activity
+            android:name=".FileSendActivity"
+            android:label="Send File to PC"
+            android:resizeableActivity="true"
+            android:enableOnBackInvokedCallback="true"
+            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
     </application>
 
 </manifest>

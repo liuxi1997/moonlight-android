@@ -24,6 +24,7 @@ import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.StreamConfiguration;
 import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.LimelightCryptoProvider;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.input.ControllerPacket;
@@ -43,10 +44,13 @@ import com.limelight.utils.UiHelper;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.app.Service;
+import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -75,8 +79,10 @@ import android.view.View;
 import android.view.View.OnGenericMotionListener;
 import android.view.View.OnSystemUiVisibilityChangeListener;
 import android.view.View.OnTouchListener;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
@@ -88,13 +94,15 @@ import java.lang.reflect.Method;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import java.util.Locale;
 
 
 public class Game extends Activity implements SurfaceHolder.Callback,
         OnGenericMotionListener, OnTouchListener, NvConnectionListener, EvdevListener,
         OnSystemUiVisibilityChangeListener, GameGestures, StreamView.InputCallbacks,
-        PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener {
+        PerfOverlayListener, UsbDriverService.UsbDriverStateListener, View.OnKeyListener,
+        com.limelight.pointerengine.DisplaySwitcher.SwitchSink {
     private int lastButtonState = 0;
 
     // Only 2 touches are supported
@@ -107,6 +115,29 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private com.limelight.pointerengine.HandleOverlay handleOverlay;
     private com.limelight.pointerengine.UiPrefs uiPrefs;
     private boolean virtualMouseActive;
+
+    // remote_desk fork: A 线浮层（Increment 3：键盘/滚轮/宏面板/凭据/自动解锁）+ B/D/G 接线
+    private com.limelight.pointerengine.KeyboardOverlay keyboardOverlay;
+    private com.limelight.pointerengine.WheelButton wheelButton;
+    private com.limelight.pointerengine.MacroPanel macroPanel;
+    private com.limelight.pointerengine.CredentialVault credentialVault;
+    private com.limelight.pointerengine.AutoUnlocker autoUnlocker;
+    private com.limelight.pointerengine.mapping.MappingOverlay mappingOverlay;
+    private com.limelight.pointerengine.DisplaySwitcher displaySwitcher;
+    // B 线映射键码归一壳（无状态，仅转发 sendKeyboardInput；切显示器重挂时复用）
+    private KeyboardNormalizingConnection inputNormalizingConn;
+    // 循环切显示器时记忆上次目标索引（±1 语义用）
+    private int lastSwitchedDesktopIndex = -1;
+
+    // A 线接线快照（onCreate 解析的 extras）：切显示器重建 NvConnection 与 filebridge 端口推导所需
+    private String streamHost;
+    private int streamPort;
+    private int streamHttpsPort;
+    private String streamUniqueId;
+    private X509Certificate streamServerCert;
+    private StreamConfiguration streamConfig;
+    // 指针引擎浮层栈（切显示器重建连接时下架重挂，把手保持顶层）
+    private final java.util.ArrayList<View> rdOverlays = new java.util.ArrayList<>();
 
     private static final int REFERENCE_HORIZ_RES = 1280;
     private static final int REFERENCE_VERT_RES = 720;
@@ -131,6 +162,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private boolean displayedFailureDialog = false;
     private boolean connecting = false;
     private boolean connected = false;
+    /** 切显示器重启流进行中（restartStreamWithApp 防连点重入，2026-11-20 评审） */
+    private final java.util.concurrent.atomic.AtomicBoolean streamRestartInProgress =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
     private boolean autoEnterPip = false;
     private boolean surfaceCreated = false;
     private boolean attemptedConnection = false;
@@ -340,6 +374,13 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             e.printStackTrace();
         }
 
+        // remote_desk fork: 快照连接参数（A 线：切显示器重建 NvConnection / filebridge 端口推导）
+        streamHost = host;
+        streamPort = port;
+        streamHttpsPort = httpsPort;
+        streamUniqueId = uniqueId;
+        streamServerCert = serverCert;
+
         if (appId == StreamConfiguration.INVALID_APP_ID) {
             finish();
             return;
@@ -491,6 +532,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 .setPersistGamepadsAfterDisconnect(!prefConfig.multiController)
                 .build();
 
+        // remote_desk fork: 保留初始 StreamConfiguration（切显示器时克隆并换 appId）
+        streamConfig = config;
+
         // Initialize the connection
         conn = new NvConnection(getApplicationContext(),
                 new ComputerDetails.AddressTuple(host, port),
@@ -516,52 +560,24 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // remote_desk fork: 指针引擎 v1 旁路（启用时接管全部触控分发，touchContextMap 保留作回退）
         if (PointerEnginePrefs.isEnabled(this)) {
-            pointerEngine = new PointerEngine(conn, PointerEnginePrefs.load(this));
-
             uiPrefs = new com.limelight.pointerengine.UiPrefs(this);
             virtualMouseActive = (uiPrefs.getMode() == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE);
 
-            // UU 式虚拟鼠标：L/R 屏上按钮（按住=按下，抬手=释放）；光标用串流画面里的真实主机光标
-            vmOverlay = new VirtualMouseOverlay(this, conn, uiPrefs);
-            vmOverlay.setVirtualMode(virtualMouseActive);
-            addContentView(vmOverlay,
-                    new android.widget.FrameLayout.LayoutParams(
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+            pointerEngine = new PointerEngine(conn, PointerEnginePrefs.load(this));
 
-            // 侧边把手 + 快捷面板（模式切换 / LR 显隐 / 布局调整）
-            handleOverlay = new com.limelight.pointerengine.HandleOverlay(this, uiPrefs,
-                    new com.limelight.pointerengine.HandleOverlay.PanelCallback() {
-                        @Override
-                        public void onToggleMode() {
-                            int mode = uiPrefs.getMode();
-                            int next = (mode == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE)
-                                    ? com.limelight.pointerengine.UiPrefs.MODE_TOUCHSCREEN
-                                    : com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE;
-                            uiPrefs.setMode(next);
-                            virtualMouseActive = (next == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE);
-                            vmOverlay.setVirtualMode(virtualMouseActive);
-                            handleOverlay.refreshState();
-                            Toast.makeText(Game.this, virtualMouseActive ? "虚拟鼠标模式" : "触屏直连模式",
-                                    Toast.LENGTH_SHORT).show();
-                        }
+            // A 线 Increment 3：凭据保险库 + 自动解锁 + 显示切换（D 线纯逻辑类）+ B 线映射键码归一壳
+            credentialVault = new com.limelight.pointerengine.CredentialVault(this);
+            autoUnlocker = new com.limelight.pointerengine.AutoUnlocker(this, conn, credentialVault,
+                    uiPrefs, streamUniqueId);
+            displaySwitcher = new com.limelight.pointerengine.DisplaySwitcher(
+                    new ComputerDetails.AddressTuple(streamHost, streamPort), streamPort, streamHttpsPort,
+                    streamUniqueId, streamServerCert, PlatformBinding.getCryptoProvider(this));
+            inputNormalizingConn = new KeyboardNormalizingConnection(getApplicationContext(),
+                    new ComputerDetails.AddressTuple(streamHost, streamPort), streamHttpsPort,
+                    streamUniqueId, streamConfig, PlatformBinding.getCryptoProvider(this), streamServerCert);
 
-                        @Override
-                        public void onToggleLr() {
-                            uiPrefs.setLrVisible(!uiPrefs.isLrVisible());
-                            vmOverlay.invalidate();
-                        }
-
-                        @Override
-                        public void onToggleEdit() {
-                            uiPrefs.setEditMode(!uiPrefs.isEditMode());
-                            vmOverlay.invalidate();
-                        }
-                    });
-            addContentView(handleOverlay,
-                    new android.widget.FrameLayout.LayoutParams(
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+            // 浮层栈挂载：虚拟鼠标 → 键盘 → 滚轮 → 宏面板 → B 线映射 → 把手（顶层）
+            mountPointerEngineOverlays();
         }
 
         if (prefConfig.onscreenController) {
@@ -593,6 +609,478 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
         // The connection will be started when the surface gets created
         streamView.getHolder().addCallback(this);
+    }
+
+    // ================== remote_desk fork: A 线浮层挂载与 B/D/G 接线（Increment 3） ==================
+
+    private void addRdOverlay(View view) {
+        addContentView(view, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    /**
+     * 指针引擎浮层栈挂载（A 线独占）：虚拟鼠标 → 键盘 → 滚轮 → 宏面板 → B 线映射 → 把手（顶层）。
+     * 切显示器重建连接后重新调用：先下架旧浮层再重挂（回调闭包重新绑定当前 conn）。
+     */
+    private void mountPointerEngineOverlays() {
+        ViewGroup content = (ViewGroup) findViewById(android.R.id.content);
+        for (View overlay : rdOverlays) {
+            content.removeView(overlay);
+        }
+        rdOverlays.clear();
+
+        // UU 式虚拟鼠标：L/R 屏上按钮（按住=按下，抬手=释放）；光标用串流画面里的真实主机光标
+        vmOverlay = new VirtualMouseOverlay(this, conn, uiPrefs);
+        vmOverlay.setVirtualMode(virtualMouseActive);
+        rdOverlays.add(vmOverlay);
+
+        // 全键盘浮层：粘滞 Win/Ctrl/Alt/Shift + 数字/字母/F1-12（翻页）/导航键
+        keyboardOverlay = new com.limelight.pointerengine.KeyboardOverlay(this, conn);
+        keyboardOverlay.setVisible(false);
+        rdOverlays.add(keyboardOverlay);
+
+        // 滚轮钮：可拖动胶囊，按住滑=高分辨率滚轮，单击=±1 步（灵敏度接 UiPrefs 滚速）
+        wheelButton = new com.limelight.pointerengine.WheelButton(this, conn, uiPrefs);
+        wheelButton.setVisible(uiPrefs.isWheelVisible());
+        rdOverlays.add(wheelButton);
+
+        // 快捷宏面板：宏键序列 / 剪贴板粘贴 / 凭据保险库 CRUD + 自动解锁开关
+        macroPanel = new com.limelight.pointerengine.MacroPanel(this, conn, uiPrefs,
+                credentialVault, streamUniqueId);
+        macroPanel.setVisible(false);
+        rdOverlays.add(macroPanel);
+
+        // B 线按键映射：方案 JSON 由 B 的 loadProfile 加载（null = assets 无方案文件）；
+        // 显隐沿用 B 的默认态（visible=true，方案加载即显示；显隐开关入口留待后续增量）
+        mappingOverlay = null;
+        com.limelight.pointerengine.mapping.MappingProfile mappingProfile =
+                com.limelight.pointerengine.mapping.MappingOverlay.loadProfile(this,
+                        "assets/mapping/wasd-desktop.json");
+        if (mappingProfile != null) {
+            // B 线按其 contract 直传裸 VK；协议线上格式 = 0x80 前缀 + VK（KeyboardTranslator.java:21-23/372，
+            // InputStream.c:949 原样上行），经 KeyboardNormalizingConnection 在接线缝隙处归一
+            mappingOverlay = new com.limelight.pointerengine.mapping.MappingOverlay(this,
+                    inputNormalizingConn, mappingProfile);
+            rdOverlays.add(mappingOverlay);
+        }
+
+        // 侧边把手 + 快捷面板（顶层；10 钮两行，回调全在本类）
+        handleOverlay = new com.limelight.pointerengine.HandleOverlay(this, uiPrefs,
+                new com.limelight.pointerengine.HandleOverlay.PanelCallback() {
+                    @Override
+                    public void onToggleMode() {
+                        int mode = uiPrefs.getMode();
+                        int next = (mode == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE)
+                                ? com.limelight.pointerengine.UiPrefs.MODE_TOUCHSCREEN
+                                : com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE;
+                        uiPrefs.setMode(next);
+                        virtualMouseActive = (next == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE);
+                        vmOverlay.setVirtualMode(virtualMouseActive);
+                        handleOverlay.refreshState();
+                        Toast.makeText(Game.this, virtualMouseActive ? "虚拟鼠标模式" : "触屏直连模式",
+                                Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onToggleLr() {
+                        uiPrefs.setLrVisible(!uiPrefs.isLrVisible());
+                        vmOverlay.invalidate();
+                    }
+
+                    @Override
+                    public void onToggleEdit() {
+                        uiPrefs.setEditMode(!uiPrefs.isEditMode());
+                        vmOverlay.invalidate();
+                        wheelButton.invalidate();
+                    }
+
+                    @Override
+                    public void onToggleKeyboard() {
+                        boolean show = !keyboardOverlay.isVisible();
+                        keyboardOverlay.setVisible(show);
+                        // 串流画面上最多两层浮层（docs/04 §四）：键盘与宏面板互斥展开
+                        if (show && macroPanel.isVisible()) {
+                            macroPanel.setVisible(false);
+                            handleOverlay.setToggleState(5, false);
+                        }
+                        handleOverlay.setToggleState(3, show);
+                    }
+
+                    @Override
+                    public void onToggleWheel() {
+                        boolean show = !uiPrefs.isWheelVisible();
+                        uiPrefs.setWheelVisible(show);
+                        wheelButton.setVisible(show);
+                    }
+
+                    @Override
+                    public void onToggleMacros() {
+                        boolean show = !macroPanel.isVisible();
+                        macroPanel.setVisible(show);
+                        if (show && keyboardOverlay.isVisible()) {
+                            keyboardOverlay.setVisible(false);
+                            handleOverlay.setToggleState(3, false);
+                        }
+                        handleOverlay.setToggleState(5, show);
+                    }
+
+                    @Override
+                    public void onSendClipboard() {
+                        ClipboardManager cm =
+                                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                        CharSequence text = (cm != null && cm.hasPrimaryClip()
+                                && cm.getPrimaryClip() != null && cm.getPrimaryClip().getItemAt(0) != null)
+                                ? cm.getPrimaryClip().getItemAt(0).getText() : null;
+                        if (text == null || text.length() == 0) {
+                            Toast.makeText(Game.this, "剪贴板为空", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        conn.sendUtf8Text(text.toString());
+                        Toast.makeText(Game.this, "已粘贴 " + text.length() + " 字符",
+                                Toast.LENGTH_SHORT).show();
+                    }
+
+                    @Override
+                    public void onUnlock() {
+                        if (autoUnlocker != null) {
+                            autoUnlocker.runManual();
+                        }
+                    }
+
+                    @Override
+                    public void onSwitchDisplay(int delta) {
+                        showDisplayChooser(delta);
+                    }
+
+                    @Override
+                    public void onSendFile() {
+                        launchFileSend();
+                    }
+                });
+        rdOverlays.add(handleOverlay);
+
+        for (View overlay : rdOverlays) {
+            addRdOverlay(overlay);
+        }
+        handleOverlay.refreshState();
+    }
+
+    /**
+     * D 线接线：面板「切屏」→ 后台线程拉 Desktop-N 条目（applist，禁主线程）→
+     * delta=0 弹 N 项选择对话框；±1 相对上次目标循环切。选中后经
+     * {@link DisplaySwitcher#switchTo(NvApp, DisplaySwitcher.SwitchSink)} 预检并回调
+     * {@link #restartStreamWithApp(int)}（SwitchSink=Game）。
+     */
+    private void showDisplayChooser(final int delta) {
+        if (displaySwitcher == null) {
+            Toast.makeText(this, "指针引擎未启用", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, "正在获取显示器列表…", Toast.LENGTH_SHORT).show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final List<NvApp> desktops = displaySwitcher.listDesktopApps();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (desktops.isEmpty()) {
+                                Toast.makeText(Game.this,
+                                        "被控端没有 Desktop-N 条目，请先在被控端运行 Generate-DisplayApps.ps1（E 线）",
+                                        Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            if (delta == 0) {
+                                showDesktopDialog(desktops);
+                            }
+                            else {
+                                int count = desktops.size();
+                                int target = ((lastSwitchedDesktopIndex + delta) % count + count) % count;
+                                lastSwitchedDesktopIndex = target;
+                                switchToDesktop(desktops.get(target));
+                            }
+                        }
+                    });
+                }
+                catch (final Exception e) {
+                    LimeLog.warning("DisplaySwitcher: listDesktopApps failed: " + e);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(Game.this, "获取显示器列表失败："
+                                    + (e.getMessage() != null ? e.getMessage() : e.toString()),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }, "rd-display-list").start();
+    }
+
+    private void showDesktopDialog(final List<NvApp> desktops) {
+        String[] names = new String[desktops.size()];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = desktops.get(i).getAppName() + "（ID " + desktops.get(i).getAppId() + "）";
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("切换到显示器")
+                .setItems(names, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        lastSwitchedDesktopIndex = which;
+                        switchToDesktop(desktops.get(which));
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /** 选中 Desktop 条目：DisplaySwitcher 预检（可达/配对/目标存在）后经 SwitchSink 回调宿主重启流 */
+    private void switchToDesktop(final NvApp desktop) {
+        Toast.makeText(this, "切换到 " + desktop.getAppName() + "…", Toast.LENGTH_SHORT).show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    displaySwitcher.switchTo(desktop, Game.this);
+                }
+                catch (final Exception e) {
+                    LimeLog.warning("DisplaySwitcher: switch failed: " + e);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(Game.this, "切换失败："
+                                    + (e.getMessage() != null ? e.getMessage() : e.toString()),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }, "rd-display-switch").start();
+    }
+
+    /**
+     * D 线承诺的宿主执行流（SwitchSink 回调，可能自后台线程调用）：
+     * conn.stop()（NvConnection.java:89）→ 按 onCreate 同构造式重建 NvConnection（appId=目标）→
+     * 重绑输入栈 → conn.start(audio, decoderRenderer, this)（surfaceChanged 同路径，
+     * 其内部 startApp 自动处理 resume / quitAndLaunch：NvConnection.java:310-345）。
+     * 整链路重握手需数秒，非瞬时切换。
+     */
+    @Override
+    public void restartStreamWithApp(final int appId) {
+        // 【修复 2026-11-20 评审】并发/重复切屏守卫：
+        //  - 无运行中串流（connected=false）时拒绝：此时若再走 stop() 路径会 release 无配对
+        //    acquire 的信号量许可（NvConnection.stop 无条件 release，permit 只在 start 流程
+        //    acquire），计数>1 后两条 startConnection 可并发操作非线程安全的 MoonBridge
+        //  - CAS 防重入：连点两次「切屏」不再产生并发 restart 线程（第二次直接提示并忽略）
+        if (!connected) {
+            LimeLog.warning("DisplaySwitcher: stream not connected, ignore switch to app " + appId);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(Game.this, "当前没有运行中的串流，无法切换显示器", Toast.LENGTH_SHORT).show();
+                }
+            });
+            return;
+        }
+        if (!streamRestartInProgress.compareAndSet(false, true)) {
+            LimeLog.warning("DisplaySwitcher: stream restart already in progress, ignore app " + appId);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(Game.this, "显示器切换已在进行中", Toast.LENGTH_SHORT).show();
+                }
+            });
+            return;
+        }
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(Game.this, "切换显示器中（重新握手，需数秒）…", Toast.LENGTH_SHORT).show();
+            }
+        });
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // 0) 与 surfaceDestroyed 同序：先让解码器停下（置 stopping 标志、停渲染线程），
+                    //    再拆桥（conn.stop 之后 decoder 不再被并发触碰）
+                    decoderRenderer.prepareForStop();
+
+                    // 1) 停旧流：状态清理同 stopConnection()，但 conn.stop() 必须在本线程同步完成
+                    //    （MoonBridge 桥接完全拆除并释放连接信号量后，新连接才能 start）
+                    if (connecting || connected) {
+                        connecting = connected = false;
+                        updatePipAutoEnter();
+                        controllerHandler.stop();
+                        UiHelper.notifyStreamEnded(Game.this);
+                        // 【修复 2026-11-20 评审】stop() 必须与 start 的 acquire 一一配对：
+                        // NvConnection.stop() 无条件 release 静态信号量（NvConnection.java:101），
+                        // 而 permit 只在 start 流程 acquire（:417）。旧实现把 stop() 放在守卫外，
+                        // 会话未连接/已结束/上一轮已 stop 时再切屏就会多放许可（计数>1），
+                        // 之后两条 startConnection 可并发操作非线程安全的 MoonBridge。
+                        // 移入守卫后与上游 stopConnection()（Game.java:2747-2768）同款语义。
+                        if (conn != null) {
+                            conn.stop();
+                        }
+                    }
+
+                    // 2) 按目标 appId 重建 NvConnection（与 onCreate 构造式一致，仅换 NvApp）
+                    NvApp targetApp = new NvApp(appName != null ? appName : "Desktop", appId, false);
+                    StreamConfiguration config = cloneStreamConfigWithApp(streamConfig, targetApp);
+                    final NvConnection newConn = new NvConnection(getApplicationContext(),
+                            new ComputerDetails.AddressTuple(streamHost, streamPort),
+                            streamHttpsPort, streamUniqueId, config,
+                            PlatformBinding.getCryptoProvider(Game.this), streamServerCert);
+
+                    // 3) 重绑全部持有 conn 的输入栈（视图操作须在 UI 线程）
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            conn = newConn;
+                            controllerHandler = new ControllerHandler(Game.this, conn, Game.this, prefConfig);
+                            for (int i = 0; i < touchContextMap.length; i++) {
+                                if (!prefConfig.touchscreenTrackpad) {
+                                    touchContextMap[i] = new AbsoluteTouchContext(conn, i, streamView);
+                                }
+                                else {
+                                    touchContextMap[i] = new RelativeTouchContext(conn, i,
+                                            REFERENCE_HORIZ_RES, REFERENCE_VERT_RES,
+                                            streamView, prefConfig);
+                                }
+                            }
+                            pointerEngine = new PointerEngine(conn, PointerEnginePrefs.load(Game.this));
+                            if (autoUnlocker != null) {
+                                autoUnlocker.setConn(conn);
+                            }
+                            mountPointerEngineOverlays();
+                        }
+                    });
+
+                    // 4) 重新拉流（重设渲染目标后 conn.start，等同 surfaceChanged 首连路径）
+                    decoderRenderer.setRenderTarget(streamView.getHolder());
+                    newConn.start(new AndroidAudioRenderer(Game.this, prefConfig.enableAudioFx),
+                            decoderRenderer, Game.this);
+                }
+                catch (final Exception e) {
+                    LimeLog.warning("DisplaySwitcher: stream restart failed: " + e);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(Game.this, "切换显示器失败："
+                                    + (e.getMessage() != null ? e.getMessage() : e.toString()),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+                finally {
+                    // 防重入标记复位：成功/失败都放行下一次切屏
+                    streamRestartInProgress.set(false);
+                }
+            }
+        }, "rd-stream-restart").start();
+    }
+
+    /** 克隆初始 StreamConfiguration 并替换目标 app（分辨率/码率/帧率等全部沿用本次会话设置） */
+    private static StreamConfiguration cloneStreamConfigWithApp(StreamConfiguration src, NvApp app) {
+        return new StreamConfiguration.Builder()
+                .setResolution(src.getWidth(), src.getHeight())
+                .setLaunchRefreshRate(src.getLaunchRefreshRate())
+                .setRefreshRate(src.getRefreshRate())
+                .setApp(app)
+                .setBitrate(src.getBitrate())
+                .setEnableSops(src.getSops())
+                .enableLocalAudioPlayback(src.getPlayLocalAudio())
+                .setMaxPacketSize(src.getMaxPacketSize())
+                .setRemoteConfiguration(src.getRemote())
+                .setSupportedVideoFormats(src.getSupportedVideoFormats())
+                .setAttachedGamepadMask(src.getAttachedGamepadMask())
+                .setClientRefreshRateX100(src.getClientRefreshRateX100())
+                .setAudioConfiguration(src.getAudioConfiguration())
+                .setColorSpace(src.getColorSpace())
+                .setColorRange(src.getColorRange())
+                .setPersistGamepadsAfterDisconnect(src.getPersistGamepadsAfterDisconnect())
+                .build();
+    }
+
+    /**
+     * G 线接线：面板「发文件」→ FileSendActivity（SAF 选文件 → OkHttp 分块 POST 到被控端 filebridge）。
+     * extras 契约（G contract）：EXTRA_HOST_ADDRESS=VPS 地址（UiPrefs 首次录入并记忆）/
+     * EXTRA_FILEBRIDGE_PORT=50000+(httpsPort-47984)（未知 httpsPort 按偏移 0）/EXTRA_PC_NAME。
+     */
+    private void launchFileSend() {
+        String hostAddr = uiPrefs != null ? uiPrefs.getFileBridgeHost() : null;
+        if (hostAddr == null || hostAddr.trim().isEmpty()) {
+            promptFileBridgeHost();
+            return;
+        }
+        doLaunchFileSend(hostAddr.trim());
+    }
+
+    private void doLaunchFileSend(String hostAddr) {
+        int filebridgePort = streamHttpsPort > 0 ? 50000 + (streamHttpsPort - 47984) : 50000;
+        Intent intent = new Intent(this, com.limelight.FileSendActivity.class);
+        intent.putExtra(com.limelight.FileSendActivity.EXTRA_HOST_ADDRESS, hostAddr);
+        intent.putExtra(com.limelight.FileSendActivity.EXTRA_FILEBRIDGE_PORT, filebridgePort);
+        intent.putExtra(com.limelight.FileSendActivity.EXTRA_PC_NAME,
+                pcName != null ? pcName : streamHost);
+        startActivity(intent);
+    }
+
+    /** filebridge 目标地址首次录入（无云端通道，手动填写后存 UiPrefs 记忆） */
+    private void promptFileBridgeHost() {
+        final EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint("filebridge 目标地址（VPS 公网地址）");
+        String saved = uiPrefs != null ? uiPrefs.getFileBridgeHost() : null;
+        if (saved != null) {
+            input.setText(saved);
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("发文件到主机")
+                .setMessage("输入 filebridge 所在地址（首次填写后记忆）")
+                .setView(input)
+                .setPositiveButton("继续", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String host = input.getText().toString().trim();
+                        if (host.isEmpty()) {
+                            Toast.makeText(Game.this, "地址为空", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        if (uiPrefs != null) {
+                            uiPrefs.setFileBridgeHost(host);
+                        }
+                        doLaunchFileSend(host);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /**
+     * 键盘 keyMap 归一壳：把裸 Win32 VK 键码补上 GFE 协议的 0x80 前缀。
+     * 线上格式 = (0x80 << 8) | VK（KeyboardTranslator.java:21-23 上游注释「GFE's prefix for every
+     * key code」，KeyboardTranslator.java:372 同式组装；moonlight-common-c InputStream.c:949 把
+     * keyCode 原样 LE16 上行，:908 只按低字节做自身修正）。B 线 MappingOverlay 按 contract 直传
+     * 裸 VK，本壳仅用于 MappingOverlay 的 conn 参数；0x80XX 输入原样透传（幂等）。
+     * 物理键盘通道（Game.handleKey*）走 KeyboardTranslator 已带前缀，不经本壳。
+     */
+    private static final class KeyboardNormalizingConnection extends NvConnection {
+        KeyboardNormalizingConnection(Context appContext, ComputerDetails.AddressTuple host,
+                                      int httpsPort, String uniqueId, StreamConfiguration config,
+                                      LimelightCryptoProvider cryptoProvider, X509Certificate serverCert) {
+            super(appContext, host, httpsPort, uniqueId, config, cryptoProvider, serverCert);
+        }
+
+        @Override
+        public void sendKeyboardInput(short keyMap, byte keyDirection, byte modifier, byte flags) {
+            if (keyMap > 0 && (keyMap & 0xFF00) == 0) {
+                keyMap = (short) (0x8000 | keyMap);
+            }
+            super.sendKeyboardInput(keyMap, keyDirection, modifier, flags);
+        }
     }
 
     private void setPreferredOrientationForCurrentDisplay() {
@@ -2483,6 +2971,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+
+                // remote_desk fork: A 线——设置了自动解锁开关时，连接建立即发解锁序列（CAD+密码）
+                if (autoUnlocker != null) {
+                    autoUnlocker.onStreamConnected();
+                }
 
                 // Hide the mouse cursor now after a short delay.
                 // Doing it before dismissing the spinner seems to be undone

@@ -7,8 +7,14 @@
     -->
     <style name="AppBaseTheme" parent="android:Theme.Material">
         <!-- API 21 theme customizations can go here. -->
-        <item name="android:statusBarColor">#212121</item>
-        <item name="android:navigationBarColor">#212121</item>
+
+        <!-- remote_desk 深色基座（docs/04 §四）：状态栏/导航栏与背景同色 #0F1115，
+             强调色 #3B82F6（checkbox/进度条/对话框按钮跟随）。 -->
+        <item name="android:statusBarColor">@color/rd_bg</item>
+        <item name="android:navigationBarColor">@color/rd_bg</item>
+        <item name="android:colorPrimary">@color/rd_accent</item>
+        <item name="android:colorPrimaryDark">@color/rd_bg</item>
+        <item name="android:colorAccent">@color/rd_accent</item>
     </style>
 
 </resources>

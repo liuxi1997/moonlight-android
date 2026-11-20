@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- remote_desk 卡片底：#1A1D24 圆角 16dp；按压态提亮 + 强调色描边 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/rd_surface_pressed" />
+            <stroke android:width="1.5dp" android:color="@color/rd_accent" />
+            <corners android:radius="@dimen/rd_radius_card" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/rd_surface" />
+            <corners android:radius="@dimen/rd_radius_card" />
+        </shape>
+    </item>
+</selector>

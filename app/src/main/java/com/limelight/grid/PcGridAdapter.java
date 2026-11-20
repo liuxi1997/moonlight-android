@@ -50,6 +50,17 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
 
     @Override
     public void populateView(View parentView, ImageView imgView, ProgressBar prgView, TextView txtView, ImageView overlayView, PcView.ComputerObject obj) {
+        // remote_desk UI：主机卡片右上角在线/离线状态色点（纯视觉绑定，逻辑与原有分支无关）
+        View statusDotView = parentView.findViewById(R.id.rd_status_dot);
+        if (statusDotView != null) {
+            if (obj.details.state == ComputerDetails.State.ONLINE) {
+                statusDotView.setBackgroundResource(R.drawable.rd_dot_online);
+            }
+            else {
+                statusDotView.setBackgroundResource(R.drawable.rd_dot_offline);
+            }
+        }
+
         imgView.setImageResource(R.drawable.ic_computer);
         if (obj.details.state == ComputerDetails.State.ONLINE) {
             imgView.setAlpha(1.0f);

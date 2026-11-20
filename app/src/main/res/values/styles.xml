@@ -20,6 +20,15 @@
         <!-- All customizations that are NOT specific to a particular API-level can go here. -->
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
+
+        <!-- remote_desk 深色基座（docs/04 §四）：背景 #0F1115 + 主文字 #E5E7EB。
+             状态栏/导航栏同色在 values-v21 的 AppBaseTheme 里设置（API 21+ 属性）。 -->
+        <item name="android:windowBackground">@color/rd_bg</item>
+        <item name="android:colorBackground">@color/rd_bg</item>
+        <item name="android:textColorPrimary">@color/rd_text</item>
+        <item name="android:textColorSecondary">@color/rd_text_secondary</item>
+        <item name="android:textColorTertiary">@color/rd_text_secondary</item>
+        <item name="android:textColorHint">@color/rd_text_secondary</item>
     </style>
 
     <style name="StreamBaseTheme" parent="AppBaseTheme">

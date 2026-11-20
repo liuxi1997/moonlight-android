@@ -6,4 +6,9 @@
     <dimen name="tv_channel_logo_width">80dp</dimen>
     <dimen name="tv_channel_logo_height">80dp</dimen>
 
+    <!-- remote_desk 设计令牌 · 圆角/触控目标（docs/04 §四） -->
+    <dimen name="rd_radius_card">16dp</dimen>
+    <dimen name="rd_radius_panel">20dp</dimen>
+    <dimen name="rd_touch_target">48dp</dimen>
+
 </resources>

@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- remote_desk 主界面标题（fork 专属，中文为既定文案，见 docs/04 §四） -->
+    <string name="rd_main_title">远程主机</string>
+
     <!-- Shortcut strings -->
     <string name="scut_deleted_pc">PC deleted</string>
     <string name="scut_not_paired">PC not paired</string>

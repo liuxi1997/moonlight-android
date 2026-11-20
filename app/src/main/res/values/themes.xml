@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    remote_desk 深色基座主题（docs/04 §四）。
+
+    注意：AppBaseTheme / AppTheme / StreamTheme 仍由 values/styles.xml 持有
+    （AndroidManifest.xml:58/155 引用，勿在本文件重定义同名 style——AAPT 会报
+    duplicate style）。RdTheme 是供后续翻新屏（v1.2 主界面/设置页、
+    FileSendActivity 等）继承的深色基座；minSdk 21，直接以框架 Theme.Material
+    （深色版）为父级，无需 values-v21 限定符。
+-->
+<resources>
+    <style name="RdTheme" parent="android:Theme.Material">
+        <item name="android:colorBackground">@color/rd_bg</item>
+        <item name="android:windowBackground">@color/rd_bg</item>
+        <item name="android:colorAccent">@color/rd_accent</item>
+        <item name="android:statusBarColor">@color/rd_bg</item>
+        <item name="android:navigationBarColor">@color/rd_bg</item>
+    </style>
+</resources>

@@ -1,29 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- remote_desk 应用磁贴：#1A1D24 圆角 16dp 卡片 + 统一内边距，封面居中铺放；
+     无封面时应用名白字居中显示（有封面时由 CachedAppAssetLoader 隐藏文字）。
+     控件 ID（grid_image/grid_overlay/grid_text）保持不变。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="150dp"
     android:layout_height="200dp"
-    android:padding="10dp">
-    <ImageView
-        android:id="@+id/grid_image"
-        android:cropToPadding="false"
-        android:scaleType="fitXY"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-    </ImageView>
-    <ImageView
-        android:id="@+id/grid_overlay"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="10dp"
-        android:layout_width="50dp"
-        android:layout_height="50dp">
-    </ImageView>
-    <TextView
-        android:id="@+id/grid_text"
+    android:padding="6dp">
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/grid_overlay"
-        android:layout_margin="5dp"
-        android:gravity="center"
-        android:textSize="18sp">
-    </TextView>
+        android:background="@drawable/rd_bg_card"
+        android:padding="8dp">
+        <ImageView
+            android:id="@+id/grid_image"
+            android:cropToPadding="false"
+            android:scaleType="fitXY"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </ImageView>
+        <ImageView
+            android:id="@+id/grid_overlay"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="10dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp">
+        </ImageView>
+        <TextView
+            android:id="@+id/grid_text"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/grid_overlay"
+            android:layout_margin="5dp"
+            android:gravity="center"
+            android:textColor="@color/rd_text"
+            android:textSize="16sp"
+            android:textStyle="bold">
+        </TextView>
+    </RelativeLayout>
 </RelativeLayout>
