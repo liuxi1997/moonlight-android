@@ -190,6 +190,9 @@ public final class KeyboardOverlay extends View {
             resetAll();
         }
         setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (visible) {
+            requestLayout();
+        }
         invalidate();
     }
 

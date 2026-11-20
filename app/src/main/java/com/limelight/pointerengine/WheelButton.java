@@ -81,6 +81,9 @@ public final class WheelButton extends View {
         this.visible = visible;
         resetGesture();
         setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (visible) {
+            requestLayout();
+        }
         invalidate();
     }
 

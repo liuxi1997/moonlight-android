@@ -114,6 +114,11 @@ public final class MacroPanel extends View {
     public void setVisible(boolean visible) {
         this.visible = visible;
         setVisibility(visible ? View.VISIBLE : View.GONE);
+        // 【2026-11-21 测试轮】GONE 期间不参与布局（尺寸 0），转 VISIBLE 必须
+        // requestLayout 触发真实 measure/layout，否则 onDraw 用 0 尺寸画不出面板
+        if (visible) {
+            requestLayout();
+        }
         invalidate();
     }
 
