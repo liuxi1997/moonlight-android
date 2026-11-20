@@ -9,6 +9,8 @@ import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
 import com.limelight.binding.input.touch.RelativeTouchContext;
+import com.limelight.pointerengine.PointerEngine;
+import com.limelight.pointerengine.PointerEnginePrefs;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
@@ -97,6 +99,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
     private long threeFingerDownTime = 0;
+
+    // remote_desk fork: 指针引擎 v1（整手手势状态机，开关见 PointerEnginePrefs）
+    private PointerEngine pointerEngine;
 
     private static final int REFERENCE_HORIZ_RES = 1280;
     private static final int REFERENCE_VERT_RES = 720;
@@ -502,6 +507,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         REFERENCE_HORIZ_RES, REFERENCE_VERT_RES,
                         streamView, prefConfig);
             }
+        }
+
+        // remote_desk fork: 指针引擎 v1 旁路（启用时接管全部触控分发，touchContextMap 保留作回退）
+        if (PointerEnginePrefs.isEnabled(this)) {
+            pointerEngine = new PointerEngine(conn, PointerEnginePrefs.load(this));
         }
 
         if (prefConfig.onscreenController) {
@@ -2028,6 +2038,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     for (TouchContext aTouchContext : touchContextMap) {
                         aTouchContext.cancelTouch();
                     }
+                    if (pointerEngine != null) {
+                        pointerEngine.onCancel();
+                    }
 
                     return true;
                 }
@@ -2040,6 +2053,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     // send it directly as a touch event.
                     return true;
                 }*/
+
+                // remote_desk fork: 指针引擎 v1 整手旁路（优先于上游 per-pointer 分发）
+                if (pointerEngine != null) {
+                    return pointerEngine.onTouchEvent(event, xOffset, yOffset);
+                }
 
                 TouchContext context = getTouchContext(actionIndex);
                 if (context == null) {

@@ -794,6 +794,12 @@ public class NvHTTP {
                 (verb.equals("resume") && !getXmlString(xmlStr, "resume", true).equals("0")))) {
             // sessionUrl0 will be missing for older GFE versions
             context.rtspSessionUrl = getXmlString(xmlStr, "sessionUrl0", false);
+            if (context.rtspSessionUrl == null) {
+                // remote_desk fork: Sunshine 不下发 sessionUrl0（GFE 遗产字段）。
+                // 不合成的话 native 端解析失败会回落 48010，非标准端口（端口族偏移）串流必败。
+                // RTSP 端口布局 = HTTPS 端口 + 26（https 48084 → rtsp 48110）。
+                context.rtspSessionUrl = "rtsp://" + baseUrlHttp.host() + ":" + (httpsPort + 26) + "/platform";
+            }
             return true;
         }
         else {
