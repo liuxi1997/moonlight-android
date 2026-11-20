@@ -104,6 +104,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     // remote_desk fork: 指针引擎 v1（整手手势状态机，开关见 PointerEnginePrefs）
     private PointerEngine pointerEngine;
     private com.limelight.pointerengine.VirtualMouseOverlay vmOverlay;
+    private com.limelight.pointerengine.HandleOverlay handleOverlay;
+    private com.limelight.pointerengine.UiPrefs uiPrefs;
+    private boolean virtualMouseActive;
 
     private static final int REFERENCE_HORIZ_RES = 1280;
     private static final int REFERENCE_VERT_RES = 720;
@@ -515,8 +518,12 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         if (PointerEnginePrefs.isEnabled(this)) {
             pointerEngine = new PointerEngine(conn, PointerEnginePrefs.load(this));
 
+            uiPrefs = new com.limelight.pointerengine.UiPrefs(this);
+            virtualMouseActive = (uiPrefs.getMode() == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE);
+
             // UU 式虚拟鼠标：可见指针 + 屏上左/右键（按住=按下，抬手=释放）
-            vmOverlay = new VirtualMouseOverlay(this, conn);
+            vmOverlay = new VirtualMouseOverlay(this, conn, uiPrefs);
+            vmOverlay.setVirtualMode(virtualMouseActive);
             pointerEngine.setCursorListener(vmOverlay::setCursorPosition);
             addContentView(vmOverlay,
                     new android.widget.FrameLayout.LayoutParams(
@@ -524,6 +531,40 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                             android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
             vmOverlay.getViewTreeObserver().addOnGlobalLayoutListener(
                     () -> pointerEngine.setViewport(vmOverlay.getWidth(), vmOverlay.getHeight()));
+
+            // 侧边把手 + 快捷面板（模式切换 / LR 显隐 / 布局调整）
+            handleOverlay = new com.limelight.pointerengine.HandleOverlay(this, uiPrefs,
+                    new com.limelight.pointerengine.HandleOverlay.PanelCallback() {
+                        @Override
+                        public void onToggleMode() {
+                            int mode = uiPrefs.getMode();
+                            int next = (mode == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE)
+                                    ? com.limelight.pointerengine.UiPrefs.MODE_TOUCHSCREEN
+                                    : com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE;
+                            uiPrefs.setMode(next);
+                            virtualMouseActive = (next == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE);
+                            vmOverlay.setVirtualMode(virtualMouseActive);
+                            handleOverlay.refreshState();
+                            Toast.makeText(Game.this, virtualMouseActive ? "虚拟鼠标模式" : "触屏直连模式",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+
+                        @Override
+                        public void onToggleLr() {
+                            uiPrefs.setLrVisible(!uiPrefs.isLrVisible());
+                            vmOverlay.invalidate();
+                        }
+
+                        @Override
+                        public void onToggleEdit() {
+                            uiPrefs.setEditMode(!uiPrefs.isEditMode());
+                            vmOverlay.invalidate();
+                        }
+                    });
+            addContentView(handleOverlay,
+                    new android.widget.FrameLayout.LayoutParams(
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
         }
 
         if (prefConfig.onscreenController) {
@@ -2066,8 +2107,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                     return true;
                 }*/
 
-                // remote_desk fork: 指针引擎 v1 整手旁路（优先于上游 per-pointer 分发）
-                if (pointerEngine != null) {
+                // remote_desk fork: 指针引擎 v1 整手旁路——仅虚拟鼠标模式接管；
+                // 触屏直连模式回落上游 per-pointer 分发（AbsoluteTouch 点哪点哪）
+                if (virtualMouseActive && pointerEngine != null) {
                     return pointerEngine.onTouchEvent(event, xOffset, yOffset);
                 }
 
