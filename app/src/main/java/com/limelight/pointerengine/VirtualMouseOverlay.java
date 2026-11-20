@@ -30,12 +30,6 @@ public final class VirtualMouseOverlay extends View {
 
     private boolean virtualMode = true;
 
-    // 虚拟指针
-    private float cursorX = -1, cursorY = -1;
-    private float cursorSize;
-    private final Paint cursorFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint cursorStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
-
     // L/R 按钮
     private float btnRadius;
     private float btnSpacing;
@@ -59,7 +53,6 @@ public final class VirtualMouseOverlay extends View {
         float d = context.getResources().getDisplayMetrics().density;
         btnRadius = 26 * d;
         btnSpacing = 14 * d;
-        cursorSize = 44 * d;
         btnFill.setColor(Color.argb(90, 40, 120, 255));
         btnStroke.setColor(Color.argb(180, 255, 255, 255));
         btnStroke.setStrokeWidth(2);
@@ -80,13 +73,7 @@ public final class VirtualMouseOverlay extends View {
         return virtualMode;
     }
 
-    /** PointerEngine.CursorListener 回调入口 */
-    public void setCursorPosition(float x, float y) {
-        cursorX = x;
-        cursorY = y;
-        invalidate();
-    }
-
+    /** 模式/布局变化后重绘 */
     private boolean isLandscape() {
         return getWidth() > getHeight();
     }
@@ -121,9 +108,6 @@ public final class VirtualMouseOverlay extends View {
         if (prefs.isEditMode() && prefs.isLrVisible()) {
             canvas.drawText("拖动 L/R 调整位置", getWidth() / 2f, getHeight() - btnSpacing * 6, editHint);
         }
-        if (cursorX >= 0) {
-            drawCursor(canvas);
-        }
     }
 
     private void layoutButtonRects() {
@@ -140,28 +124,6 @@ public final class VirtualMouseOverlay extends View {
         canvas.drawText(label, rect.centerX(), rect.centerY() + textPaint.getTextSize() / 3, textPaint);
     }
 
-    private void drawCursor(Canvas canvas) {
-        float s = cursorSize;
-        Path arrow = new Path();
-        arrow.moveTo(cursorX, cursorY);
-        arrow.lineTo(cursorX, cursorY + s * 0.80f);
-        arrow.lineTo(cursorX + s * 0.24f, cursorY + s * 0.62f);
-        arrow.lineTo(cursorX + s * 0.36f, cursorY + s * 0.90f);
-        arrow.lineTo(cursorX + s * 0.46f, cursorY + s * 0.85f);
-        arrow.lineTo(cursorX + s * 0.34f, cursorY + s * 0.58f);
-        arrow.lineTo(cursorX + s * 0.62f, cursorY + s * 0.58f);
-        arrow.close();
-
-        cursorFill.setColor(Color.argb(220, 255, 255, 255));
-        cursorStroke.setColor(Color.argb(230, 20, 20, 20));
-        cursorStroke.setStrokeWidth(Math.max(2f, s * 0.045f));
-        cursorStroke.setStyle(Paint.Style.STROKE);
-        canvas.drawPath(arrow, cursorFill);
-        canvas.drawPath(arrow, cursorStroke);
-        cursorStroke.setStyle(Paint.Style.FILL_AND_STROKE);
-    }
-
-    /** PointerEngine 位移后由 Game/引擎同步的虚拟指针落点（含视口钳制） */
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         float x = event.getX();

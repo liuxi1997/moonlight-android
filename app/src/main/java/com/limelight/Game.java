@@ -521,16 +521,13 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             uiPrefs = new com.limelight.pointerengine.UiPrefs(this);
             virtualMouseActive = (uiPrefs.getMode() == com.limelight.pointerengine.UiPrefs.MODE_VIRTUAL_MOUSE);
 
-            // UU 式虚拟鼠标：可见指针 + 屏上左/右键（按住=按下，抬手=释放）
+            // UU 式虚拟鼠标：L/R 屏上按钮（按住=按下，抬手=释放）；光标用串流画面里的真实主机光标
             vmOverlay = new VirtualMouseOverlay(this, conn, uiPrefs);
             vmOverlay.setVirtualMode(virtualMouseActive);
-            pointerEngine.setCursorListener(vmOverlay::setCursorPosition);
             addContentView(vmOverlay,
                     new android.widget.FrameLayout.LayoutParams(
                             android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                             android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
-            vmOverlay.getViewTreeObserver().addOnGlobalLayoutListener(
-                    () -> pointerEngine.setViewport(vmOverlay.getWidth(), vmOverlay.getHeight()));
 
             // 侧边把手 + 快捷面板（模式切换 / LR 显隐 / 布局调整）
             handleOverlay = new com.limelight.pointerengine.HandleOverlay(this, uiPrefs,
