@@ -115,6 +115,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private com.limelight.pointerengine.HandleOverlay handleOverlay;
     private com.limelight.pointerengine.UiPrefs uiPrefs;
     private boolean virtualMouseActive;
+    // resume 失败自动回退 fresh launch 的单次重试标记（connectionStarted 复位）
+    private boolean freshRetryUsed = false;
 
     // remote_desk fork: A 线浮层（Increment 3：键盘/滚轮/宏面板/凭据/自动解锁）+ B/D/G 接线
     private com.limelight.pointerengine.KeyboardOverlay keyboardOverlay;
@@ -661,6 +663,9 @@ public class Game extends Activity implements SurfaceHolder.Callback,
             // InputStream.c:949 原样上行），经 KeyboardNormalizingConnection 在接线缝隙处归一
             mappingOverlay = new com.limelight.pointerengine.mapping.MappingOverlay(this,
                     inputNormalizingConn, mappingProfile);
+            // 【2026-11-21 测试轮】映射浮层默认隐藏（桌面办公场景常显会挡画面/误触）；
+            // 显示入口：面板「键盘」关闭时点「布局」组……暂以长按磁贴外方式后置，先默认关
+            mappingOverlay.setVisible(false);
             rdOverlays.add(mappingOverlay);
         }
 
@@ -702,6 +707,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                         if (show && macroPanel.isVisible()) {
                             macroPanel.setVisible(false);
                             handleOverlay.setToggleState(5, false);
+                        }
+                        // 【2026-11-21 测试轮】键盘与 WASD 映射浮层互斥：映射钮位置与键盘
+                        // 键位重叠（A/S/D 处），同显必互相干扰；开键盘时收起映射
+                        if (show && mappingOverlay != null && mappingOverlay.isVisible()) {
+                            mappingOverlay.setVisible(false);
                         }
                         handleOverlay.setToggleState(3, show);
                     }
@@ -2807,6 +2817,40 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     public void stageFailed(final String stage, final int portFlags, final int errorCode) {
+        // remote_desk fork（2026-11-21 测试轮）：RTSP/会话阶段失败且本次为 resume 时，
+        // 自动回退 fresh launch 一次——Sunshine 端僵尸会话（terminate/服务重启后的
+        // currentgame 残留）会让 resume 必败，直接重开新会话即恢复（实测多轮）。
+        // 仅重试一次，防止失败循环；连接成功后于 connectionStarted 复位。
+        if (stage.contains("RTSP") && !freshRetryUsed) {
+            freshRetryUsed = true;
+            LimeLog.warning("stageFailed on " + stage + " during resume - retrying as fresh launch");
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(Game.this, "会话恢复失败，正在重新建立连接…", Toast.LENGTH_SHORT).show();
+                }
+            });
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                        try {
+                            if (conn != null) {
+                                conn.stop();
+                            }
+                            Thread.sleep(1500);
+                            if (conn != null && decoderRenderer != null) {
+                                decoderRenderer.setRenderTarget(streamView.getHolder());
+                                conn.start(new AndroidAudioRenderer(Game.this, prefConfig.enableAudioFx),
+                                        decoderRenderer, Game.this);
+                            }
+                        } catch (InterruptedException e) {
+                            // 重试被中断：按原失败路径继续
+                        }
+                }
+            }, "rd-fresh-retry").start();
+            return;
+        }
+
         // Perform a connection test if the failure could be due to a blocked port
         // This does network I/O, so don't do it on the main thread.
         final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER, 443, portFlags);
@@ -2970,6 +3014,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
                 connected = true;
                 connecting = false;
+                freshRetryUsed = false;   // 连接成功：复位 resume→fresh 单次回退标记
                 updatePipAutoEnter();
 
                 // remote_desk fork: A 线——设置了自动解锁开关时，连接建立即发解锁序列（CAD+密码）

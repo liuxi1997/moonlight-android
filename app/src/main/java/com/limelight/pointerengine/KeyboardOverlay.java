@@ -184,6 +184,7 @@ public final class KeyboardOverlay extends View {
 
     /** 显隐切换：隐藏时复位粘滞键与进行中的按键（避免悬挂的修饰/按键状态） */
     public void setVisible(boolean visible) {
+        android.util.Log.d("rd_ui", "keyboard setVisible=" + visible);
         this.visible = visible;
         if (!visible) {
             resetAll();
@@ -361,7 +362,8 @@ public final class KeyboardOverlay extends View {
         if (actionMasked == MotionEvent.ACTION_DOWN) {
             int[] hit = hitKey(event.getX(), event.getY());
             android.util.Log.d("rd_ui", "kb DOWN at " + (int) event.getX() + "," + (int) event.getY()
-                    + " hit=" + (hit == null ? "null" : hit[0] + "," + hit[1]));
+                    + " hit=" + (hit == null ? "null" : hit[0] + "," + hit[1])
+                    + " size=" + getWidth() + "x" + getHeight() + " panelH=" + panelH + " keyH=" + keyH);
             if (hit == null) {
                 return false;   // 面板外透传
             }
@@ -435,7 +437,10 @@ public final class KeyboardOverlay extends View {
             byte mask = effectiveModifierMask();
             consumeArmedModifiers();
             pressedModifiers.put(pointerId, mask);
-            conn.sendKeyboardInput(vkKeyMap(key.vk), KeyboardPacket.KEY_DOWN, mask, (byte) 0);
+            short vk = vkKeyMap(key.vk);
+            conn.sendKeyboardInput(vk, KeyboardPacket.KEY_DOWN, mask, (byte) 0);
+            android.util.Log.d("rd_ui", "kb send " + key.label + " DOWN vk=0x"
+                    + Integer.toHexString(vk & 0xFFFF) + " mask=0x" + Integer.toHexString(mask & 0xFF));
         }
         // TYPE_PAGE：抬起时翻页
     }

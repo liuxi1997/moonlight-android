@@ -632,12 +632,11 @@ public class AppView extends Activity implements AdapterFragmentCallbacks {
                                     long id) {
                 AppObject app = (AppObject) appGridAdapter.getItem(pos);
 
-                // Only open the context menu if something is running, otherwise start it
-                if (lastRunningAppId != 0) {
-                    openContextMenu(arg1);
-                } else {
-                    ServerHelper.doStart(AppView.this, app.app, computer, managerBinder);
-                }
+                // remote_desk fork（对标 UU 免确认直连）：单击无条件直通启动。
+                // 会话运行中时 NvConnection.startApp 自带语义——同 app 自动 resume、
+                // 跨 app 自动 quitAndLaunch（NvConnection.java:310-345），无需人工选菜单。
+                // 长按菜单（Resume/Quit/Details/Shortcut）保留给显式管理需求。
+                ServerHelper.doStart(AppView.this, app.app, computer, managerBinder);
             }
         });
         UiHelper.applyStatusBarPadding(listView);
