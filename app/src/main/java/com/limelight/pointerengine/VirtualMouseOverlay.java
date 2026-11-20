@@ -41,10 +41,11 @@ public final class VirtualMouseOverlay extends View {
     private final Paint editHint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private int activeButton = -1;   // 按住的按钮：-1 无 / 0 左 / 1 右
 
-    // 布局模式拖动
+    // 布局模式拖动（L/R 独立位置，各自持久化）
     private int draggingButton = -1;
     private float dragGrabDx, dragGrabDy;
-    private float lrLeftX = -1, lrTopY = -1;   // L 按钮左上角（R = L.x + 2r + spacing）
+    private float lX = -1, lY = -1;   // L 左上角
+    private float rX = -1, rY = -1;   // R 左上角
 
     public VirtualMouseOverlay(Context context, NvConnection conn, UiPrefs prefs) {
         super(context);
@@ -78,20 +79,40 @@ public final class VirtualMouseOverlay extends View {
         return getWidth() > getHeight();
     }
 
-    /** L 按钮左上角：记忆位置或默认右下角（横竖屏分别取默认） */
+    @Override
+    protected void onSizeChanged(int w, int h, int ow, int oh) {
+        super.onSizeChanged(w, h, ow, oh);
+        boolean land = w > h;
+        // 旋转切换时重载该屏向的独立记忆（lX<0 触发 resolve 重新取值）
+        if (land != (ow > oh)) {
+            lX = lY = rX = rY = -1;
+        }
+        invalidate();
+    }
+
+    /** 解析 L/R 位置：记忆位置或默认（R 贴右下角，L 在其左一钮距；竖屏整体上移避手势条） */
     private void resolveLrPositions() {
         float w = getWidth(), h = getHeight();
         if (w == 0) return;
-        float[] saved = prefs.getLrPos(isLandscape());
-        if (saved != null && lrLeftX < 0) {
-            lrLeftX = saved[0];
-            lrTopY = saved[1];
+        boolean land = isLandscape();
+        if (rX < 0) {
+            float[] saved = prefs.getBtnPos("r", land);
+            if (saved != null) {
+                rX = saved[0]; rY = saved[1];
+            } else {
+                float bottomPad = btnSpacing + (land ? btnSpacing : btnSpacing * 4);
+                rY = h - btnRadius * 2 - bottomPad;
+                rX = w - btnRadius * 2 - btnSpacing;
+            }
         }
-        if (lrLeftX < 0 || lrTopY < 0) {
-            // 默认：右下角并排（R 靠边角，L 在左一钮距）；竖屏整体上移避手势条
-            float bottomPad = btnSpacing + (isLandscape() ? btnSpacing : btnSpacing * 4);
-            lrTopY = h - btnRadius * 2 - bottomPad;
-            lrLeftX = w - btnRadius * 4 - btnSpacing * 2;
+        if (lX < 0) {
+            float[] saved = prefs.getBtnPos("l", land);
+            if (saved != null) {
+                lX = saved[0]; lY = saved[1];
+            } else {
+                lY = rY;
+                lX = rX - btnRadius * 2 - btnSpacing;
+            }
         }
     }
 
@@ -106,15 +127,13 @@ public final class VirtualMouseOverlay extends View {
             drawButton(canvas, rightBtnRect, "R", activeButton == 1 || draggingButton == 1);
         }
         if (prefs.isEditMode() && prefs.isLrVisible()) {
-            canvas.drawText("拖动 L/R 调整位置", getWidth() / 2f, getHeight() - btnSpacing * 6, editHint);
+            canvas.drawText("分别拖动 L / R 到顺手位置（自动保存）", getWidth() / 2f, getHeight() - btnSpacing * 6, editHint);
         }
     }
 
     private void layoutButtonRects() {
-        float d = lrLeftX, dy = lrTopY;
-        leftBtnRect.set(d, dy, d + btnRadius * 2, dy + btnRadius * 2);
-        rightBtnRect.set(d + btnRadius * 2 + btnSpacing, dy,
-                d + btnRadius * 4 + btnSpacing, dy + btnRadius * 2);
+        leftBtnRect.set(lX, lY, lX + btnRadius * 2, lY + btnRadius * 2);
+        rightBtnRect.set(rX, rY, rX + btnRadius * 2, rY + btnRadius * 2);
     }
 
     private void drawButton(Canvas canvas, RectF rect, String label, boolean pressed) {
@@ -166,14 +185,11 @@ public final class VirtualMouseOverlay extends View {
 
             case MotionEvent.ACTION_MOVE:
                 if (draggingButton >= 0) {
-                    float nx = x - dragGrabDx;
-                    float ny = y - dragGrabDy;
-                    nx = Math.max(0, Math.min(getWidth() - btnRadius * 4 - btnSpacing, nx));
-                    ny = Math.max(0, Math.min(getHeight() - btnRadius * 2 - btnSpacing, ny));
-                    lrLeftX = nx;
-                    lrTopY = ny;
+                    float nx = Math.max(0, Math.min(getWidth() - btnRadius * 2, x - dragGrabDx));
+                    float ny = Math.max(0, Math.min(getHeight() - btnRadius * 2, y - dragGrabDy));
+                    if (draggingButton == 0) { lX = nx; lY = ny; }
+                    else { rX = nx; rY = ny; }
                     layoutButtonRects();
-                    prefs.setLrPos(isLandscape(), lrLeftX, lrTopY);
                     invalidate();
                     return true;
                 }
@@ -182,6 +198,10 @@ public final class VirtualMouseOverlay extends View {
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 if (draggingButton >= 0) {
+                    // 松手落位并持久化（该按钮、该屏向独立记忆）
+                    boolean land = isLandscape();
+                    if (draggingButton == 0) prefs.setBtnPos("l", land, lX, lY);
+                    else prefs.setBtnPos("r", land, rX, rY);
                     draggingButton = -1;
                     invalidate();
                     return true;

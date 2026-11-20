@@ -49,9 +49,9 @@ public final class UiPrefs {
         sp.edit().putBoolean(KEY_EDIT_MODE, edit).apply();
     }
 
-    /** LR 位置（竖屏/横屏各一份）：返回 null = 使用默认位置 */
-    public float[] getLrPos(boolean landscape) {
-        String k = landscape ? "lr_land" : "lr_port";
+    /** 单钮位置（which="l"/"r"，横/竖屏各一份）：返回 null = 使用默认位置 */
+    public float[] getBtnPos(String which, boolean landscape) {
+        String k = which + (landscape ? "_land" : "_port");
         String v = sp.getString(k, null);
         if (v == null) return null;
         String[] parts = v.split(",");
@@ -63,9 +63,21 @@ public final class UiPrefs {
         }
     }
 
-    public void setLrPos(boolean landscape, float x, float y) {
-        String k = landscape ? "lr_land" : "lr_port";
+    public void setBtnPos(String which, boolean landscape, float x, float y) {
+        String k = which + (landscape ? "_land" : "_port");
         sp.edit().putString(k, x + "," + y).apply();
+    }
+
+    /** 清空布局记忆（恢复默认位置），并返回是否发生了清理 */
+    public boolean resetLayout() {
+        boolean had = false;
+        for (String w : new String[]{"l", "r"}) {
+            for (String s : new String[]{"_land", "_port"}) {
+                had |= sp.contains(w + s);
+                sp.edit().remove(w + s).apply();
+            }
+        }
+        return had;
     }
 
     /** 把手 Y 位置（占屏高比例 0-1），横竖屏各一份 */
