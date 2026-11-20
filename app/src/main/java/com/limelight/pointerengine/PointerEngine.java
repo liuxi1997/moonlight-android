@@ -33,10 +33,20 @@ public final class PointerEngine {
 
     private enum Mode { IDLE, PENDING, MOVE, DRAG, TWO_FINGER, SWALLOW }
 
+    public interface CursorListener {
+        void onCursorMoved(float x, float y);
+    }
+
     private final NvConnection conn;
     private final Handler handler;
     private AccelerationCurve curve;
     private float scrollSpeed;
+
+    // 虚拟指针（客户端自绘光标，UU 式）
+    private CursorListener cursorListener;
+    private float curX, curY;
+    private int viewportW, viewportH;
+    private boolean cursorInit = false;
 
     // 指针槽（按 slot 存，pointer id 稳定）
     private final int[] fingerId = new int[MAX_FINGERS];
@@ -79,6 +89,34 @@ public final class PointerEngine {
     public void applyPrefs(PointerEnginePrefs prefs) {
         this.curve = prefs.newCurve();
         this.scrollSpeed = prefs.getScrollSpeed();
+    }
+
+    /** 设置视口尺寸（串流视图大小）；首次调用时虚拟指针归位屏幕中心 */
+    public void setViewport(int w, int h) {
+        if (w <= 0 || h <= 0) return;
+        viewportW = w;
+        viewportH = h;
+        if (!cursorInit) {
+            curX = w / 2.0f;
+            curY = h / 2.0f;
+            cursorInit = true;
+            notifyCursor();
+        }
+    }
+
+    public void setCursorListener(CursorListener listener) {
+        this.cursorListener = listener;
+    }
+
+    private void notifyCursor() {
+        if (cursorListener != null) {
+            cursorListener.onCursorMoved(curX, curY);
+        }
+    }
+
+    private float clampCursor(float v, float max) {
+        if (max <= 0) return v;
+        return Math.max(0f, Math.min(max - 1f, v));
     }
 
     // ---------------- 事件入口（Game.java 旁路调用） ----------------
@@ -330,6 +368,10 @@ public final class PointerEngine {
         accY = dy - outY;
         if (outX != 0 || outY != 0) {
             conn.sendMouseMove(outX, outY);
+            // 虚拟指针同步位移（UU 式：客户端自绘光标跟随相对增量）
+            curX = clampCursor(curX + outX, viewportW);
+            curY = clampCursor(curY + outY, viewportH);
+            notifyCursor();
         }
     }
 

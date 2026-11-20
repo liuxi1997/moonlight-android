@@ -800,6 +800,7 @@ public class NvHTTP {
                 // RTSP 端口布局 = HTTPS 端口 + 26（https 48084 → rtsp 48110）。
                 context.rtspSessionUrl = "rtsp://" + baseUrlHttp.host() + ":" + (httpsPort + 26) + "/platform";
             }
+            LimeLog.info("remote_desk: rtspSessionUrl=" + context.rtspSessionUrl + " (httpsPort=" + httpsPort + ")");
             return true;
         }
         else {

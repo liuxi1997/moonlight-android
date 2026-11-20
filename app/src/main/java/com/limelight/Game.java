@@ -11,6 +11,7 @@ import com.limelight.binding.input.touch.AbsoluteTouchContext;
 import com.limelight.binding.input.touch.RelativeTouchContext;
 import com.limelight.pointerengine.PointerEngine;
 import com.limelight.pointerengine.PointerEnginePrefs;
+import com.limelight.pointerengine.VirtualMouseOverlay;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.binding.input.evdev.EvdevListener;
 import com.limelight.binding.input.touch.TouchContext;
@@ -102,6 +103,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     // remote_desk fork: 指针引擎 v1（整手手势状态机，开关见 PointerEnginePrefs）
     private PointerEngine pointerEngine;
+    private com.limelight.pointerengine.VirtualMouseOverlay vmOverlay;
 
     private static final int REFERENCE_HORIZ_RES = 1280;
     private static final int REFERENCE_VERT_RES = 720;
@@ -512,6 +514,16 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         // remote_desk fork: 指针引擎 v1 旁路（启用时接管全部触控分发，touchContextMap 保留作回退）
         if (PointerEnginePrefs.isEnabled(this)) {
             pointerEngine = new PointerEngine(conn, PointerEnginePrefs.load(this));
+
+            // UU 式虚拟鼠标：可见指针 + 屏上左/右键（按住=按下，抬手=释放）
+            vmOverlay = new VirtualMouseOverlay(this, conn);
+            pointerEngine.setCursorListener(vmOverlay::setCursorPosition);
+            addContentView(vmOverlay,
+                    new android.widget.FrameLayout.LayoutParams(
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+            vmOverlay.getViewTreeObserver().addOnGlobalLayoutListener(
+                    () -> pointerEngine.setViewport(vmOverlay.getWidth(), vmOverlay.getHeight()));
         }
 
         if (prefConfig.onscreenController) {
