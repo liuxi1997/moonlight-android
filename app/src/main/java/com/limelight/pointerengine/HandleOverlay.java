@@ -140,6 +140,8 @@ public final class HandleOverlay extends View {
         float y = event.getY();
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                android.util.Log.d("rd_ui", "handle DOWN at " + (int) x + "," + (int) y
+                        + " panelOpen=" + panelOpen + " handleRect=" + handleRect);
                 if (panelOpen) {
                     for (int i = 0; i < btnRects.length; i++) {
                         if (btnRects[i].contains(x, y)) {
@@ -193,6 +195,7 @@ public final class HandleOverlay extends View {
     }
 
     private void dispatchAction(int index) {
+        android.util.Log.d("rd_ui", "panel action=" + LABELS[index]);
         if (callback == null) return;
         switch (index) {
             case 0: callback.onToggleMode(); break;

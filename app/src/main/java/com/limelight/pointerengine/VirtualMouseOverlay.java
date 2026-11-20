@@ -202,6 +202,8 @@ public final class VirtualMouseOverlay extends View {
                     boolean land = isLandscape();
                     if (draggingButton == 0) prefs.setBtnPos("l", land, lX, lY);
                     else prefs.setBtnPos("r", land, rX, rY);
+                    android.util.Log.d("rd_ui", "drop btn=" + draggingButton + " pos=" + (int) lX + "," + (int) lY
+                            + "/" + (int) rX + "," + (int) rY + " landscape=" + land);
                     draggingButton = -1;
                     invalidate();
                     return true;
