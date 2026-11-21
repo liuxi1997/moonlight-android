@@ -96,9 +96,9 @@ public final class MacroPanel extends View {
         pad = 8 * d;
         panelW = ROW_SIZE * btnW + (ROW_SIZE - 1) * gap + pad * 2;
         panelH = 2 * btnH + gap + pad * 2;
-        panelBg.setColor(Color.argb(190, 15, 17, 21));
-        btnFill.setColor(Color.argb(140, 59, 130, 246));
-        btnStroke.setColor(Color.argb(150, 255, 255, 255));
+        panelBg.setColor(Color.argb(242, 26, 29, 36));   // 对齐抽屉底 #F21A1D24
+        btnFill.setColor(Color.argb(230, 35, 42, 56));   // 常态深灰卡，绘制时按下转蓝
+        btnStroke.setColor(Color.argb(64, 255, 255, 255));   // 玻璃描边 25%
         btnStroke.setStrokeWidth(1f);
         textPaint.setColor(Color.WHITE);
         textPaint.setTextAlign(Paint.Align.CENTER);
@@ -157,7 +157,7 @@ public final class MacroPanel extends View {
         if (!visible) return;
         canvas.drawRoundRect(panelRect, 14, 14, panelBg);
         for (int i = 0; i < btnRects.length; i++) {
-            btnFill.setAlpha(pressed && hitButtonLast == i ? 220 : 140);
+            if (pressed && hitButtonLast == i) { btnFill.setColor(Color.argb(225, 59, 130, 246)); }  // 按下=强调蓝
             canvas.drawRoundRect(btnRects[i], btnRects[i].height() / 2, btnRects[i].height() / 2, btnFill);
             canvas.drawRoundRect(btnRects[i], btnRects[i].height() / 2, btnRects[i].height() / 2, btnStroke);
             String label = i < MACROS.length ? MACROS[i].label : (i == BTN_PASTE ? "粘贴" : "凭据");
@@ -211,8 +211,12 @@ public final class MacroPanel extends View {
     private void dispatchAction(int index) {
         if (index < MACROS.length) {
             Macro macro = MACROS[index];
-            if (macro.modifier == KeyboardPacket.MODIFIER_ALT) {
-                sendAltTabSequential();
+            if (macro.modifier == KeyboardPacket.MODIFIER_ALT
+                    || macro.modifier == KeyboardPacket.MODIFIER_META) {
+                // Alt/Win 系宏走真键序列：实测 mask 修饰位（单消息带 META）在
+                // Sunshine 链路上不生效（Win+R/Win+L 均无反应）；Alt+Tab 另有
+                // 时序问题（同步连发被 Windows 当作同时按下立即释放）
+                sendMacroSequential(macro);
                 return;
             }
             conn.sendKeyboardInput(KeyboardOverlay.vkKeyMap(macro.vk),
@@ -228,24 +232,27 @@ public final class MacroPanel extends View {
     }
 
     /**
-     * Alt+Tab 专用序列：任务切换器要求 Alt 按住期间 Tab 敲入、再释放 Alt；
-     * 同步毫秒级连发会被 Windows 当作同时按下立即释放，切换器闪没。
-     * 时序：Alt DOWN → 250ms → Tab DOWN/UP（切换器显示）→ 250ms → Alt UP（确认切换）
+     * Alt/Win 系宏的真键序列：修饰键 DOWN → 间隔 → 目标键敲击 → 间隔 → 修饰键 UP。
+     * mask 修饰位（单消息带 META）实测在 Sunshine 链路上不生效（Win+R/Win+L 无反应）；
+     * Alt+Tab 同步毫秒级连发会被 Windows 当作同时按下立即释放（任务切换器闪没）。
+     * 时序：修饰 DOWN →150ms→ 键 DOWN/UP →120ms→ 修饰 UP
      */
-    private void sendAltTabSequential() {
-        final short vkAlt = KeyboardOverlay.vkKeyMap(0x12);   // VK_MENU
-        final short vkTab = KeyboardOverlay.vkKeyMap(KeyboardTranslator.VK_TAB);
-        conn.sendKeyboardInput(vkAlt, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+    private void sendMacroSequential(Macro macro) {
+        final short vkMod = macro.modifier == KeyboardPacket.MODIFIER_META
+                ? KeyboardOverlay.vkKeyMap(0x5B)    // VK_LWIN
+                : KeyboardOverlay.vkKeyMap(0x12);   // VK_MENU
+        final short vkKey = KeyboardOverlay.vkKeyMap(macro.vk);
+        conn.sendKeyboardInput(vkMod, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
         postDelayed(() -> {
-            conn.sendKeyboardInput(vkTab, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
-            conn.sendKeyboardInput(vkTab, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
-            android.util.Log.d("rd_ui", "macro Alt+Tab: tab sent");
+            conn.sendKeyboardInput(vkKey, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+            conn.sendKeyboardInput(vkKey, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+            android.util.Log.d("rd_ui", "macro " + macro.label + ": key sent");
             postDelayed(() -> {
-                conn.sendKeyboardInput(vkAlt, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
-                android.util.Log.d("rd_ui", "macro Alt+Tab: alt released");
-            }, 250);
-        }, 250);
-        android.util.Log.d("rd_ui", "macro Alt+Tab");
+                conn.sendKeyboardInput(vkMod, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+                android.util.Log.d("rd_ui", "macro " + macro.label + ": mod released");
+            }, 120);
+        }, 150);
+        android.util.Log.d("rd_ui", "macro " + macro.label);
     }
 
     /** 剪贴板注入：ClipboardManager → conn.sendUtf8Text（Android→PC 单向） */

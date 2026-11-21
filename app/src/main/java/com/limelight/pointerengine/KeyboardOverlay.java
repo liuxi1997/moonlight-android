@@ -179,7 +179,7 @@ public final class KeyboardOverlay extends View {
         keyGap = KEY_GAP_DP * d;
         keyRadius = KEY_RADIUS_DP * d;
         keyFill.setColor(Color.argb(200, 26, 29, 36));
-        keyStroke.setColor(Color.argb(140, 255, 255, 255));
+        keyStroke.setColor(Color.argb(64, 255, 255, 255));   // 玻璃描边 25%，对齐抽屉语言
         keyStroke.setStrokeWidth(1f);
         textPaint.setColor(Color.WHITE);
         textPaint.setTextAlign(Paint.Align.CENTER);

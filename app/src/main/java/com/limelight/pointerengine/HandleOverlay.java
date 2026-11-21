@@ -63,6 +63,9 @@ public final class HandleOverlay extends View {
     private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint backdropPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint backdropStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint subPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint gripPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mousePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mouseWheelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -111,6 +114,17 @@ public final class HandleOverlay extends View {
         textPaint.setColor(cText);
         textPaint.setTextSize(13 * density);
         textPaint.setTextAlign(Paint.Align.CENTER);
+        // 抽屉状态行 / 卡片短标签画笔
+        titlePaint.setColor(0xFFFFFFFF);
+        titlePaint.setTextSize(14 * density);
+        titlePaint.setFakeBoldText(true);
+        titlePaint.setTextAlign(Paint.Align.LEFT);
+        subPaint.setColor(withAlpha(cText, 165));
+        subPaint.setTextSize(12 * density);
+        subPaint.setTextAlign(Paint.Align.RIGHT);
+        labelPaint.setColor(withAlpha(cText, 235));
+        labelPaint.setTextSize(11 * density);
+        labelPaint.setTextAlign(Paint.Align.CENTER);
         // 图标画笔（矢量简笔，Material Symbols 风格）
         iconPaint.setStyle(Paint.Style.STROKE);
         iconPaint.setStrokeCap(Paint.Cap.ROUND);
@@ -164,35 +178,51 @@ public final class HandleOverlay extends View {
                 getWidth(), handleCY + handleHeight / 2);
     }
 
-    /** 把手可拖动范围钳制边距：两行面板展开时按面板半高（一行钮 + 行距 + 半行钮）预留 */
+    /** 把手可拖动范围钳制边距（面板已改底部抽屉，与把手不冲突，仅防贴边） */
     private float panelClampMargin() {
-        return btnH / 2 + 8 * density + btnH;
+        return handleHeight / 2 + 16 * density;
     }
 
-    /** 面板胶囊钮两行（各 5 钮）从把手左侧展开：行内右端对齐把手，宽度随「图标+短标签」自适应 */
-    private void layoutPanelButtons(String[] labels) {
-        float gap = 10 * density;
-        float rowGap = 8 * density;
+    // —— 底部抽屉（UU 式）：状态行 + 两行等宽图标卡片 ——
+    private static final float DRAWER_SIDE_PAD = 16f;   // 抽屉距屏幕左右
+    private static final float DRAWER_INNER_PAD = 12f;  // 抽屉内边距
+    private static final float CARD_H = 58f;            // 图标卡片高
+    private static final float CARD_GAP = 10f;          // 卡片间距
+    private static final float STATE_H = 30f;           // 状态行高
+
+    private float cardW = 0;
+
+    private float drawerRectBottom() {
+        return getHeight() - 20 * density;   // 底部手势条避让
+    }
+
+    private float drawerHeight() {
+        return DRAWER_INNER_PAD * density * 2 + STATE_H * density
+                + CARD_H * density * 2 + CARD_GAP * density;
+    }
+
+    private RectF drawerRect = new RectF();
+
+    /** 面板钮两行（各 5 钮）等宽图标卡片，铺在底部抽屉内 */
+    private void layoutPanelButtons() {
+        float inner = DRAWER_INNER_PAD * density;
+        float gap = CARD_GAP * density;
+        cardW = (drawerRect.width() - inner * 2 - gap * (BUTTONS_PER_ROW - 1)) / BUTTONS_PER_ROW;
         for (int i = 0; i < btnRects.length; i++) {
             int row = i / BUTTONS_PER_ROW;
             int col = i % BUTTONS_PER_ROW;
-            float xRight = handleRect.left - gap;
-            for (int k = 0; k < col; k++) {
-                xRight -= capsuleWidth(labels[row * BUTTONS_PER_ROW + k]) + gap;
-            }
-            float w = capsuleWidth(labels[i]);
-            float top = (row == 0)
-                    ? handleCY - btnH / 2 - rowGap - btnH
-                    : handleCY + btnH / 2 + rowGap;
-            btnRects[i].set(xRight - w, top, xRight, top + btnH);
+            float left = drawerRect.left + inner + col * (cardW + gap);
+            float top = drawerRect.top + inner + STATE_H * density + row * (CARD_H * density + gap);
+            btnRects[i].set(left, top, left + cardW, top + CARD_H * density);
         }
     }
 
-    private float capsuleWidth(String label) {
-        float pad = 12 * density;
-        float icon = 18 * density;
-        float iconTextGap = 7 * density;
-        return pad + icon + iconTextGap + textPaint.measureText(label) + pad;
+    /** 抽屉几何：底部弹出，宽度 = 屏宽 - 两侧边距 */
+    private void layoutDrawer() {
+        float side = DRAWER_SIDE_PAD * density;
+        float h = drawerHeight();
+        float bottom = drawerRectBottom();
+        drawerRect.set(side, bottom - h, getWidth() - side, bottom);
     }
 
     /** 各钮状态短标签：0-4 动态（模式/LR/布局/键盘/滚轮），5（宏）经 setToggleState 回填，6-9 静态 */
@@ -238,13 +268,14 @@ public final class HandleOverlay extends View {
         }
         drawHandle(canvas);
 
-        // 面板：整体玻璃底 + 胶囊钮（图标+短标签）。
+        // 面板：UU 式底部抽屉（状态行 + 两行等宽图标卡片）。
         // 层级规则（docs/04 §四）：把手与面板同属一层浮层，全部画在本 View 内，不新增层。
         if (panelOpen) {
             String[] labels = panelLabels();
             boolean[] on = panelActiveStates();
-            layoutPanelButtons(labels);
-            drawPanelBackdrop(canvas);
+            layoutDrawer();
+            layoutPanelButtons();
+            drawPanelBackdrop(canvas, labels);
             for (int i = 0; i < btnRects.length; i++) {
                 drawPanelButton(canvas, i, labels[i], on[i]);
             }
@@ -266,39 +297,35 @@ public final class HandleOverlay extends View {
         canvas.drawRoundRect(gripRect, gripW / 2, gripW / 2, gripPaint);
     }
 
-    /** 面板整体玻璃底：包住全部钮（rd_radius_panel 圆角），纯视觉，不参与命中 */
-    private void drawPanelBackdrop(Canvas canvas) {
-        float l = Float.MAX_VALUE, t = Float.MAX_VALUE, r = -Float.MAX_VALUE, b = -Float.MAX_VALUE;
-        for (RectF btn : btnRects) {
-            l = Math.min(l, btn.left);
-            t = Math.min(t, btn.top);
-            r = Math.max(r, btn.right);
-            b = Math.max(b, btn.bottom);
-        }
-        float pad = 10 * density;
-        panelRect.set(l - pad, t - pad, r + pad, b + pad);
-        canvas.drawRoundRect(panelRect, panelRadius, panelRadius, backdropPaint);
-        canvas.drawRoundRect(panelRect, panelRadius, panelRadius, backdropStroke);
+    /** 底部抽屉底：更实的暗底（对齐 UU 操作面板）+ 顶部状态行（标题 + 当前模式） */
+    private void drawPanelBackdrop(Canvas canvas, String[] labels) {
+        // 抽屉底：高不透明深色（串流画面上高可读性，对齐 UU 面板）
+        backdropPaint.setColor((cSurface85 & 0x00FFFFFF) | 0xF2000000);
+        canvas.drawRoundRect(drawerRect, panelRadius, panelRadius, backdropPaint);
+        canvas.drawRoundRect(drawerRect, panelRadius, panelRadius, backdropStroke);
+        // 状态行：左「快捷操作」标题 + 右当前操作模式
+        float inner = DRAWER_INNER_PAD * density;
+        float lineY = drawerRect.top + inner + STATE_H * density / 2 + titlePaint.getTextSize() / 3;
+        canvas.drawText("快捷操作", drawerRect.left + inner, lineY, titlePaint);
+        boolean virtualMode = prefs.getMode() == UiPrefs.MODE_VIRTUAL_MOUSE;
+        canvas.drawText(virtualMode ? "虚拟鼠标" : "触屏直连",
+                drawerRect.right - inner, lineY, subPaint);
     }
 
-    /** 面板钮：统一胶囊形 + 图标 + 短标签；激活态=强调色填充 */
+    /** 面板钮：等宽图标卡片（图标上 / 短标签下，对齐 UU 快捷卡组）；激活态=强调色填充 */
     private void drawPanelButton(Canvas canvas, int index, String label, boolean on) {
         RectF btn = btnRects[index];
-        float r = btn.height() / 2;
-        btnFill.setColor(on ? withAlpha(cAccent, 210) : cSurface85);
+        float r = 14 * density;
+        btnFill.setColor(on ? withAlpha(cAccent, 225) : 0xE6232A38);
         canvas.drawRoundRect(btn, r, r, btnFill);
-        btnStroke.setColor(on ? withAlpha(cAccent, 240) : GLASS_STROKE);
+        btnStroke.setColor(on ? withAlpha(cAccent, 255) : GLASS_STROKE);
         canvas.drawRoundRect(btn, r, r, btnStroke);
-        // 图标 + 短标签
-        float iconSize = 18 * density;
-        float pad = 12 * density;
-        float iconTextGap = 7 * density;
-        float iconCx = btn.left + pad + iconSize / 2;
-        float cy = btn.centerY();
-        drawPanelIcon(canvas, index, iconCx, cy, iconSize);
-        float textW = textPaint.measureText(label);
-        canvas.drawText(label, btn.left + pad + iconSize + iconTextGap + textW / 2,
-                cy + textPaint.getTextSize() / 3, textPaint);
+        // 图标（上）+ 短标签（下）
+        float iconSize = 22 * density;
+        float iconCy = btn.top + btn.height() * 0.38f;
+        drawPanelIcon(canvas, index, btn.centerX(), iconCy, iconSize);
+        float labelY = btn.top + btn.height() * 0.76f + labelPaint.getTextSize() / 3;
+        canvas.drawText(label, btn.centerX(), labelY, labelPaint);
     }
 
     /** 面板钮图标（Canvas 矢量简笔）：0=模式切换⇄ 1=LR迷你鼠标 2=布局四角括号；其余索引暂无图标 */
@@ -350,6 +377,108 @@ public final class HandleOverlay extends View {
                 canvas.drawLine(cx - rr, cy + rr, cx - rr + a, cy + rr, iconPaint);
                 canvas.drawLine(cx + rr, cy + rr, cx + rr, cy + rr - a, iconPaint);
                 canvas.drawLine(cx + rr, cy + rr, cx + rr - a, cy + rr, iconPaint);
+                break;
+            }
+            case 3: { // 键盘：圆角矩形 + 键点阵
+                float kw = size * 1.35f, kh = size * 0.85f;
+                float rr = 2.5f * density;
+                RectF kb = new RectF(cx - kw / 2, cy - kh / 2, cx + kw / 2, cy + kh / 2);
+                canvas.drawRoundRect(kb, rr, rr, iconPaint);
+                float dot = 1.1f * density;
+                float step = kw / 6f;
+                for (int rI = 0; rI < 2; rI++) {
+                    for (int cI = 0; cI < 5; cI++) {
+                        canvas.drawCircle(kb.left + step * (cI + 1), kb.top + kh * (0.34f + rI * 0.28f),
+                                dot, mouseWheelPaint);
+                    }
+                }
+                mousePaint.setStyle(Paint.Style.STROKE);
+                mousePaint.setStrokeWidth(1.25f * density);
+                mousePaint.setColor(withAlpha(cText, 235));
+                canvas.drawLine(kb.left + step, kb.top + kh * 0.78f, kb.right - step, kb.top + kh * 0.78f, mousePaint);
+                break;
+            }
+            case 4: { // 滚轮：鼠标轮廓 + 中缝轮（滚轮钮）
+                float bw = size * 0.72f, bh = size;
+                float rr = bw * 0.45f;
+                iconMouseRect.set(cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2);
+                canvas.drawRoundRect(iconMouseRect, rr, rr, iconPaint);
+                canvas.drawLine(cx, iconMouseRect.top + 2 * density,
+                        cx, iconMouseRect.top + bh * 0.42f, mousePaint);
+                break;
+            }
+            case 5: { // 宏：组合键两方块叠
+                float s1 = size * 0.62f;
+                RectF b1 = new RectF(cx - size * 0.42f, cy - size * 0.42f,
+                        cx - size * 0.42f + s1, cy - size * 0.42f + s1);
+                RectF b2 = new RectF(cx - s1 / 2 + 3 * density, cy - s1 / 2 + 3 * density,
+                        cx + s1 / 2 + 3 * density, cy + s1 / 2 + 3 * density);
+                canvas.drawRoundRect(b1, 2 * density, 2 * density, iconPaint);
+                canvas.drawRoundRect(b2, 2 * density, 2 * density, iconPaint);
+                break;
+            }
+            case 6: { // 粘贴：剪贴板（板 + 顶夹）
+                float bw = size * 0.92f, bh = size * 1.05f;
+                RectF bd = new RectF(cx - bw / 2, cy - bh / 2 + 1.5f * density,
+                        cx + bw / 2, cy + bh / 2);
+                float rr = 2.5f * density;
+                canvas.drawRoundRect(bd, rr, rr, iconPaint);
+                RectF clip = new RectF(cx - bw * 0.28f, cy - bh / 2 - 0.5f * density,
+                        cx + bw * 0.28f, cy - bh / 2 + 3.5f * density);
+                mousePaint.setStyle(Paint.Style.FILL);
+                mousePaint.setColor(withAlpha(cText, 235));
+                canvas.drawRoundRect(clip, 1.5f * density, 1.5f * density, mousePaint);
+                mousePaint.setStyle(Paint.Style.STROKE);
+                mousePaint.setStrokeWidth(1.25f * density);
+                canvas.drawLine(bd.left + 3 * density, cy + bh * 0.1f, bd.right - 3 * density, cy + bh * 0.1f, mousePaint);
+                canvas.drawLine(bd.left + 3 * density, cy + bh * 0.3f, bd.right - 3 * density, cy + bh * 0.3f, mousePaint);
+                break;
+            }
+            case 7: { // 解锁：挂锁（开扣弧）
+                float bw = size * 0.85f, bh = size * 0.62f;
+                RectF body = new RectF(cx - bw / 2, cy - bh / 2 + 2.5f * density,
+                        cx + bw / 2, cy + bh / 2 + 2.5f * density);
+                float rr = 2.5f * density;
+                canvas.drawRoundRect(body, rr, rr, iconPaint);
+                // 开口弧：左半圆弧（未闭合）
+                float arcR = bw * 0.30f;
+                canvas.drawArc(cx - arcR - 1.5f * density, cy - bh / 2 - arcR * 1.4f,
+                        cx - 1.5f * density + arcR * 0.2f, cy - bh / 2 + arcR * 0.4f,
+                        180f, 180f, false, iconPaint);
+                canvas.drawCircle(cx, cy + 2.5f * density, 1.4f * density, mouseWheelPaint);
+                break;
+            }
+            case 8: { // 切屏：双显示器叠加
+                float w1 = size * 1.25f, h1 = size * 0.78f;
+                RectF m1 = new RectF(cx - w1 / 2, cy - h1 / 2, cx + w1 / 2, cy + h1 / 2);
+                canvas.drawRoundRect(m1, 2 * density, 2 * density, iconPaint);
+                canvas.drawLine(cx - w1 * 0.18f, m1.bottom, cx + w1 * 0.18f, m1.bottom, iconPaint);
+                // 右上叠一个小屏
+                float w2 = w1 * 0.5f, h2 = h1 * 0.5f;
+                mousePaint.setStyle(Paint.Style.FILL);
+                mousePaint.setColor(withAlpha(cText, 55));
+                RectF m2 = new RectF(cx + w1 * 0.16f, cy - h1 / 2 - h2 * 0.55f,
+                        cx + w1 * 0.16f + w2, cy - h1 / 2 - h2 * 0.55f + h2);
+                canvas.drawRoundRect(m2, 1.5f * density, 1.5f * density, mousePaint);
+                canvas.drawRoundRect(m2, 1.5f * density, 1.5f * density, iconPaint);
+                break;
+            }
+            case 9: { // 发文件：文件夹 + 出箭头
+                float fw = size * 1.15f, fh = size * 0.82f;
+                RectF folder = new RectF(cx - fw / 2, cy - fh / 2 + 1 * density,
+                        cx + fw / 2, cy + fh / 2 + 1 * density);
+                float rr = 2 * density;
+                canvas.drawRoundRect(folder, rr, rr, iconPaint);
+                mousePaint.setStyle(Paint.Style.STROKE);
+                mousePaint.setStrokeWidth(1.6f * density);
+                mousePaint.setColor(withAlpha(cText, 235));
+                canvas.drawLine(cx + 1 * density, cy + 1 * density,
+                        cx + fw * 0.3f, cy + 1 * density, mousePaint);
+                float ah = 2.6f * density;
+                canvas.drawLine(cx + fw * 0.3f, cy + 1 * density,
+                        cx + fw * 0.3f - ah, cy + 1 * density - ah * 0.7f, mousePaint);
+                canvas.drawLine(cx + fw * 0.3f, cy + 1 * density,
+                        cx + fw * 0.3f - ah, cy + 1 * density + ah * 0.7f, mousePaint);
                 break;
             }
             default:
