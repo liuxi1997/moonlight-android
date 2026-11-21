@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<GridView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- remote_desk：主机列表改 ListView（行卡片单列，对齐 RustDesk 设备列表）。id=fragmentView 保持（AbsListView 兼容）。 -->
+<ListView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/fragmentView"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:numColumns="auto_fit"
-    android:columnWidth="160dp"
-    android:stretchMode="spacingWidthUniform"
-    android:focusable="true"
-    android:focusableInTouchMode="true"
-    android:nextFocusLeft="@id/settingsButton"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:divider="@null"
+    android:dividerHeight="0dp"
     android:clipToPadding="false"
-    android:gravity="center"/>
+    android:paddingBottom="96dp"
+    android:focusable="true"
+    android:focusableInTouchMode="true"/>

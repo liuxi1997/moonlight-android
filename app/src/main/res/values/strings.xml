@@ -2,6 +2,10 @@
 <resources>
     <!-- remote_desk 主界面标题（fork 专属，中文为既定文案，见 docs/04 §四） -->
     <string name="rd_main_title">远程主机</string>
+    <string name="rd_status_online">在线</string>
+    <string name="rd_status_online_addr">在线 · %1$s</string>
+    <string name="rd_status_offline">离线</string>
+    <string name="rd_status_probing">检测中…</string>
 
     <!-- Shortcut strings -->
     <string name="scut_deleted_pc">PC deleted</string>

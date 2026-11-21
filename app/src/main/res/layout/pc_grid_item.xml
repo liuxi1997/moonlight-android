@@ -1,65 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- remote_desk 主机卡片：#1A1D24 圆角 16dp 底、主机名加粗、右上角在线/离线状态色点
-     （颜色由 PcGridAdapter.populateView 绑定）。控件 ID（grid_image/grid_overlay/grid_spinner/grid_text）保持不变。 -->
+<!-- remote_desk 主机行卡片（对齐 RustDesk 设备列表）：左 46dp 图标底板 + 设备名/状态双行 + 右 chevron。
+     控件 ID（grid_image/grid_overlay/grid_spinner/grid_text/rd_status_dot）保持不变，新增 rd_status_text/rd_chevron。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp">
+    android:paddingStart="12dp"
+    android:paddingLeft="12dp"
+    android:paddingEnd="12dp"
+    android:paddingRight="12dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp">
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/rd_bg_card"
-        android:padding="12dp"
-        android:paddingBottom="14dp">
-        <View
-            android:id="@+id/rd_status_dot"
-            android:layout_width="10dp"
-            android:layout_height="10dp"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentRight="true"
-            android:layout_marginTop="6dp"
-            android:layout_marginEnd="6dp"
-            android:layout_marginRight="6dp"
-            android:background="@drawable/rd_dot_offline"/>
-        <RelativeLayout
-            android:id="@+id/grid_image_layout"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true">
+        android:paddingStart="14dp"
+        android:paddingLeft="14dp"
+        android:paddingEnd="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp">
+
+        <FrameLayout
+            android:id="@+id/rd_icon_plate"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:background="@drawable/rd_bg_icon_plate">
+
             <ImageView
                 android:id="@+id/grid_image"
-                android:layout_centerHorizontal="true"
-                android:layout_width="96dp"
-                android:layout_height="96dp">
-            </ImageView>
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:scaleType="fitCenter"
+                android:tint="@color/rd_text"/>
+
             <ImageView
                 android:id="@+id/grid_overlay"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="28dp"
-                android:layout_width="40dp"
-                android:layout_height="40dp">
-            </ImageView>
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:visibility="gone"/>
+
             <ProgressBar
                 android:id="@+id/grid_spinner"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="28dp"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:indeterminate="true">
-            </ProgressBar>
-        </RelativeLayout>
-        <TextView
-            android:id="@+id/grid_text"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:indeterminate="true"/>
+        </FrameLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/grid_image_layout"
-            android:layout_marginTop="10dp"
-            android:layout_centerHorizontal="true"
-            android:gravity="center"
-            android:textColor="@color/rd_text"
-            android:textSize="16sp"
-            android:textStyle="bold" >
-        </TextView>
+            android:layout_centerVertical="true"
+            android:layout_toEndOf="@id/rd_icon_plate"
+            android:layout_toRightOf="@id/rd_icon_plate"
+            android:layout_marginStart="14dp"
+            android:layout_marginLeft="14dp"
+            android:layout_toStartOf="@+id/rd_chevron"
+            android:layout_toLeftOf="@+id/rd_chevron"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/grid_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/rd_text"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="3dp">
+
+                <View
+                    android:id="@+id/rd_status_dot"
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/rd_dot_offline"/>
+
+                <TextView
+                    android:id="@+id/rd_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginLeft="6dp"
+                    android:textColor="#8A919E"
+                    android:textSize="13sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/rd_chevron"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_centerVertical="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:src="@drawable/rd_ic_chevron"/>
     </RelativeLayout>
 </RelativeLayout>

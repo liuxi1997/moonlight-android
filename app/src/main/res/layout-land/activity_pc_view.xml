@@ -1,44 +1,79 @@
-<!-- Landscape orientation. remote_desk 深色重构：保留左侧按钮竖排（TV D-pad 焦点习惯），
-     顶部加大标题；添加主机钮改为强调色大圆钮。控件 ID 全部保持不变。 -->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Landscape orientation. remote_desk：与竖屏同构（标题栏动作右侧 + FAB 右下），去 TV 竖排旧布局。
+     控件 ID（settingsButton/helpButton/manuallyAddPc/pcFragmentContainer/no_pc_found_layout）保持不变。 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".PcView" >
 
-    <TextView
-        android:id="@+id/rd_title"
-        android:layout_width="wrap_content"
+    <RelativeLayout
+        android:id="@+id/rd_header_bar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentLeft="true"
-        android:text="@string/rd_main_title"
-        android:textColor="@color/rd_text"
-        android:textSize="24sp"
-        android:textStyle="bold"/>
+        android:background="@color/rd_surface"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:paddingStart="16dp"
+        android:paddingLeft="16dp"
+        android:paddingEnd="4dp"
+        android:paddingRight="4dp">
+
+        <TextView
+            android:id="@+id/rd_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_centerVertical="true"
+            android:text="@string/rd_main_title"
+            android:textColor="@color/rd_text"
+            android:textSize="24sp"
+            android:textStyle="bold"/>
+
+        <ImageButton
+            android:id="@+id/helpButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:scaleType="fitCenter"
+            android:padding="10dp"
+            android:src="@drawable/ic_help"
+            android:preferKeepClear="true"
+            style="?android:attr/borderlessButtonStyle"/>
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_toStartOf="@id/helpButton"
+            android:layout_toLeftOf="@id/helpButton"
+            android:layout_centerVertical="true"
+            android:scaleType="fitCenter"
+            android:padding="10dp"
+            android:src="@drawable/ic_settings"
+            android:preferKeepClear="true"
+            style="?android:attr/borderlessButtonStyle"/>
+
+    </RelativeLayout>
 
     <RelativeLayout
         android:id="@+id/pcFragmentContainer"
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:layout_below="@id/rd_title"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentRight="true"
-        android:layout_toRightOf="@+id/settingsButton"
-        android:layout_toEndOf="@+id/settingsButton">
+        android:layout_below="@id/rd_header_bar"
+        android:layout_alignParentBottom="true">
 
         <RelativeLayout
             android:id="@+id/no_pc_found_layout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
-            android:layout_centerHorizontal="true">
+            android:paddingLeft="@dimen/activity_horizontal_margin"
+            android:paddingRight="@dimen/activity_horizontal_margin"
+            android:layout_centerInParent="true">
             <ProgressBar
                 android:id="@+id/pcs_loading"
                 android:layout_width="75dp"
@@ -61,43 +96,19 @@
     </RelativeLayout>
 
     <ImageButton
-        android:id="@+id/settingsButton"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:layout_below="@id/rd_title"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentLeft="true"
-        android:layout_marginTop="8dp"
-        android:scaleType="fitCenter"
-        android:padding="12dp"
-        android:src="@drawable/ic_settings"
-        style="?android:attr/borderlessButtonStyle"/>
-
-    <ImageButton
-        android:id="@+id/helpButton"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:layout_below="@id/settingsButton"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentLeft="true"
-        android:layout_marginTop="4dp"
-        android:scaleType="fitCenter"
-        android:padding="12dp"
-        android:src="@drawable/ic_help"
-        style="?android:attr/borderlessButtonStyle"/>
-
-    <!-- 添加主机：强调色大圆钮 -->
-    <ImageButton
         android:id="@+id/manuallyAddPc"
         android:layout_width="60dp"
         android:layout_height="60dp"
-        android:layout_below="@id/helpButton"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentLeft="true"
-        android:layout_marginTop="12dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="20dp"
+        android:layout_marginRight="20dp"
+        android:layout_marginBottom="20dp"
         android:background="@drawable/rd_bg_fab"
         android:scaleType="center"
         android:src="@drawable/ic_add_plain"
-        android:elevation="8dp"/>
+        android:elevation="8dp"
+        android:preferKeepClear="true"/>
 
 </RelativeLayout>

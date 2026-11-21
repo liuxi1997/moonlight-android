@@ -50,14 +50,31 @@ public class PcGridAdapter extends GenericGridAdapter<PcView.ComputerObject> {
 
     @Override
     public void populateView(View parentView, ImageView imgView, ProgressBar prgView, TextView txtView, ImageView overlayView, PcView.ComputerObject obj) {
-        // remote_desk UI：主机卡片右上角在线/离线状态色点（纯视觉绑定，逻辑与原有分支无关）
+        // remote_desk UI：行卡片状态行（色点 + 在线/离线 + 地址），对齐 RustDesk 设备列表
         View statusDotView = parentView.findViewById(R.id.rd_status_dot);
+        TextView statusText = parentView.findViewById(R.id.rd_status_text);
         if (statusDotView != null) {
             if (obj.details.state == ComputerDetails.State.ONLINE) {
                 statusDotView.setBackgroundResource(R.drawable.rd_dot_online);
             }
             else {
                 statusDotView.setBackgroundResource(R.drawable.rd_dot_offline);
+            }
+        }
+        if (statusText != null) {
+            ComputerDetails.AddressTuple addrTuple = obj.details.localAddress != null
+                    ? obj.details.localAddress : obj.details.remoteAddress;
+            String addr = addrTuple != null ? addrTuple.address : null;
+            if (obj.details.state == ComputerDetails.State.ONLINE) {
+                statusText.setText(addr != null && !addr.isEmpty()
+                        ? context.getString(R.string.rd_status_online_addr, addr)
+                        : context.getString(R.string.rd_status_online));
+            }
+            else if (obj.details.state == ComputerDetails.State.UNKNOWN) {
+                statusText.setText(R.string.rd_status_probing);
+            }
+            else {
+                statusText.setText(R.string.rd_status_offline);
             }
         }
 
