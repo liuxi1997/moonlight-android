@@ -211,6 +211,10 @@ public final class MacroPanel extends View {
     private void dispatchAction(int index) {
         if (index < MACROS.length) {
             Macro macro = MACROS[index];
+            if (macro.modifier == KeyboardPacket.MODIFIER_ALT) {
+                sendAltTabSequential();
+                return;
+            }
             conn.sendKeyboardInput(KeyboardOverlay.vkKeyMap(macro.vk),
                     KeyboardPacket.KEY_DOWN, macro.modifier, (byte) 0);
             conn.sendKeyboardInput(KeyboardOverlay.vkKeyMap(macro.vk),
@@ -221,6 +225,27 @@ public final class MacroPanel extends View {
         } else if (index == BTN_CREDENTIAL) {
             showCredentialDialog();
         }
+    }
+
+    /**
+     * Alt+Tab 专用序列：任务切换器要求 Alt 按住期间 Tab 敲入、再释放 Alt；
+     * 同步毫秒级连发会被 Windows 当作同时按下立即释放，切换器闪没。
+     * 时序：Alt DOWN → 250ms → Tab DOWN/UP（切换器显示）→ 250ms → Alt UP（确认切换）
+     */
+    private void sendAltTabSequential() {
+        final short vkAlt = KeyboardOverlay.vkKeyMap(0x12);   // VK_MENU
+        final short vkTab = KeyboardOverlay.vkKeyMap(KeyboardTranslator.VK_TAB);
+        conn.sendKeyboardInput(vkAlt, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+        postDelayed(() -> {
+            conn.sendKeyboardInput(vkTab, KeyboardPacket.KEY_DOWN, (byte) 0, (byte) 0);
+            conn.sendKeyboardInput(vkTab, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+            android.util.Log.d("rd_ui", "macro Alt+Tab: tab sent");
+            postDelayed(() -> {
+                conn.sendKeyboardInput(vkAlt, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+                android.util.Log.d("rd_ui", "macro Alt+Tab: alt released");
+            }, 250);
+        }, 250);
+        android.util.Log.d("rd_ui", "macro Alt+Tab");
     }
 
     /** 剪贴板注入：ClipboardManager → conn.sendUtf8Text（Android→PC 单向） */
