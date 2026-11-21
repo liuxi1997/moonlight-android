@@ -65,6 +65,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:layout_below="@id/rd_header_bar"
+        android:layout_above="@id/rd_bottom_nav"
         android:layout_alignParentBottom="true">
 
         <RelativeLayout
@@ -101,7 +102,7 @@
         android:layout_height="60dp"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
-        android:layout_alignParentBottom="true"
+        android:layout_above="@id/rd_bottom_nav"
         android:layout_marginEnd="20dp"
         android:layout_marginRight="20dp"
         android:layout_marginBottom="20dp"
@@ -111,4 +112,146 @@
         android:elevation="8dp"
         android:preferKeepClear="true"/>
 
+    <!-- 协助页：被控端占位（M3） -->
+    <ScrollView
+        android:id="@+id/rd_assist_page"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/rd_header_bar"
+        android:layout_above="@id/rd_bottom_nav"
+        android:visibility="gone"
+        android:fillViewport="true">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="24dp"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:text="@string/rd_assist_placeholder"
+            android:textColor="#8A919E"
+            android:textSize="15sp"/>
+    </ScrollView>
+
+    <!-- 我的页：会话历史 + 设置/关于入口 -->
+    <ScrollView
+        android:id="@+id/rd_profile_page"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/rd_header_bar"
+        android:layout_above="@id/rd_bottom_nav"
+        android:visibility="gone"
+        android:fillViewport="true">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/rd_profile_history_title"
+                android:textColor="@color/rd_text"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+            <LinearLayout
+                android:id="@+id/rd_history_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp"/>
+            <TextView
+                android:id="@+id/rd_history_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/rd_profile_history_empty"
+                android:textColor="#8A919E"
+                android:textSize="13sp"
+                android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </ScrollView>
+
+
+    <!-- 底部导航：自绘三 Tab（设备/协助/我的），选中态蓝色 -->
+    <LinearLayout
+        android:id="@+id/rd_bottom_nav"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_alignParentBottom="true"
+        android:background="@color/rd_surface"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/rd_tab_device"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/rd_ic_nav_device"
+                android:tint="@color/rd_nav_item"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/rd_nav_device"
+                android:textColor="@color/rd_nav_item"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rd_tab_assist"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/rd_ic_nav_assist"
+                android:tint="@color/rd_nav_item"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/rd_nav_assist"
+                android:textColor="@color/rd_nav_item"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rd_tab_profile"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/rd_ic_nav_profile"
+                android:tint="@color/rd_nav_item"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/rd_nav_profile"
+                android:textColor="@color/rd_nav_item"
+                android:textSize="10sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
 </RelativeLayout>
+

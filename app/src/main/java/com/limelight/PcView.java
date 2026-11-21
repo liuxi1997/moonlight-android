@@ -50,6 +50,9 @@ import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.ScrollView;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
@@ -172,6 +175,8 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
             .replace(R.id.pcFragmentContainer, new AdapterFragment())
             .commitAllowingStateLoss();
 
+        setupBottomNav();
+
         noPcFoundLayout = findViewById(R.id.no_pc_found_layout);
         if (pcGridAdapter.getCount() == 0) {
             noPcFoundLayout.setVisibility(View.VISIBLE);
@@ -180,6 +185,80 @@ public class PcView extends Activity implements AdapterFragmentCallbacks {
             noPcFoundLayout.setVisibility(View.INVISIBLE);
         }
         pcGridAdapter.notifyDataSetChanged();
+    }
+
+    /** v1.3 底部导航：设备/协助/我的 三 Tab（自绘轻量栏，对齐 RustDesk·UU 产品结构） */
+    private void setupBottomNav() {
+        final View nav = findViewById(R.id.rd_bottom_nav);
+        final View headerBar = findViewById(R.id.rd_header_bar);
+        final View deviceContainer = findViewById(R.id.pcFragmentContainer);
+        final View assistPage = findViewById(R.id.rd_assist_page);
+        final View profilePage = findViewById(R.id.rd_profile_page);
+        final View fab = findViewById(R.id.manuallyAddPc);
+        final TextView title = findViewById(R.id.rd_title);
+        final View tabDevice = findViewById(R.id.rd_tab_device);
+        final View tabAssist = findViewById(R.id.rd_tab_assist);
+        final View tabProfile = findViewById(R.id.rd_tab_profile);
+        if (nav == null || headerBar == null || tabDevice == null) {
+            return;
+        }
+        View.OnClickListener switcher = v -> {
+            boolean device = v.getId() == R.id.rd_tab_device;
+            boolean assist = v.getId() == R.id.rd_tab_assist;
+            tabDevice.setSelected(device);
+            tabAssist.setSelected(assist);
+            tabProfile.setSelected(!device && !assist);
+            deviceContainer.setVisibility(device ? View.VISIBLE : View.GONE);
+            assistPage.setVisibility(assist ? View.VISIBLE : View.GONE);
+            profilePage.setVisibility(!device && !assist ? View.VISIBLE : View.GONE);
+            fab.setVisibility(device ? View.VISIBLE : View.GONE);
+            if (device) {
+                title.setText(R.string.rd_main_title);
+            } else if (assist) {
+                title.setText(R.string.rd_nav_assist);
+            } else {
+                title.setText(R.string.rd_nav_profile);
+                renderHistory();
+            }
+        };
+        tabDevice.setOnClickListener(switcher);
+        tabAssist.setOnClickListener(switcher);
+        tabProfile.setOnClickListener(switcher);
+        tabDevice.setSelected(true);
+    }
+
+    /** “我的”页：渲染最近会话历史（SessionHistory，最新在前） */
+    private void renderHistory() {
+        LinearLayout list = findViewById(R.id.rd_history_list);
+        TextView empty = findViewById(R.id.rd_history_empty);
+        if (list == null) {
+            return;
+        }
+        list.removeAllViews();
+        SessionHistory.Entry[] entries = SessionHistory.load(this);
+        empty.setVisibility(entries.length == 0 ? View.VISIBLE : View.GONE);
+        java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("MM-dd HH:mm",
+                java.util.Locale.getDefault());
+        for (SessionHistory.Entry e : entries) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(0, (int) (10 * getResources().getDisplayMetrics().density), 0, 0);
+            TextView line1 = new TextView(this);
+            line1.setText(e.host + (e.app.isEmpty() ? "" : " · " + e.app));
+            line1.setTextColor(getResources().getColor(R.color.rd_text));
+            line1.setTextSize(14);
+            TextView line2 = new TextView(this);
+            long min = e.durationMs / 60000;
+            String dur = min >= 60
+                    ? (min / 60) + "小时" + (min % 60) + "分"
+                    : min + "分钟";
+            line2.setText(fmt.format(new java.util.Date(e.endTime)) + " · " + dur);
+            line2.setTextColor(0xFF8A919E);
+            line2.setTextSize(12);
+            row.addView(line1);
+            row.addView(line2);
+            list.addView(row);
+        }
     }
 
     @Override

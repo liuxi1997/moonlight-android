@@ -172,6 +172,8 @@ public class Game extends Activity implements SurfaceHolder.Callback,
     private boolean attemptedConnection = false;
     private int suppressPipRefCount = 0;
     private String pcName;
+    // v1.3 会话历史：串流连接建立时间（connectionStarted 记，onDestroy 算时长）
+    private long sessionStartMs;
     private String appName;
     private NvApp app;
     private float desiredRefreshRate;
@@ -1592,6 +1594,11 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     protected void onDestroy() {
+        // v1.3 会话历史：串流 Activity 销毁即会话结束
+        if (sessionStartMs > 0) {
+            SessionHistory.record(this, pcName, appName,
+                    System.currentTimeMillis() - sessionStartMs);
+        }
         super.onDestroy();
 
         if (controllerHandler != null) {
@@ -3004,6 +3011,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
 
     @Override
     public void connectionStarted() {
+        sessionStartMs = System.currentTimeMillis();
         runOnUiThread(new Runnable() {
             @Override
             public void run() {

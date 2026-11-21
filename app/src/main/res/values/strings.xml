@@ -2,6 +2,14 @@
 <resources>
     <!-- remote_desk 主界面标题（fork 专属，中文为既定文案，见 docs/04 §四） -->
     <string name="rd_main_title">远程主机</string>
+    <string name="rd_nav_device">设备</string>
+    <string name="rd_nav_assist">协助</string>
+    <string name="rd_nav_profile">我的</string>
+    <string name="rd_assist_placeholder">Android 被控端规划中（M3）：届时手机屏幕可被你的其他设备远程查看与控制。</string>
+    <string name="rd_profile_history_title">最近会话</string>
+    <string name="rd_profile_history_empty">暂无会话记录。连接一次主机后，这里会显示历史。</string>
+    <string name="rd_profile_settings">设置</string>
+    <string name="rd_profile_about">关于</string>
     <string name="rd_status_online">在线</string>
     <string name="rd_status_online_addr">在线 · %1$s</string>
     <string name="rd_status_offline">离线</string>
