@@ -80,7 +80,7 @@ public final class VirtualMouseOverlay extends View {
         btnStroke.setColor(GLASS_STROKE);
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setStrokeWidth(1.25f * density);
-        linePaint.setColor(withAlpha(cText, 120));
+        linePaint.setColor(0x8C3A4152);   // 浅底深灰描边/中缝
         wheelPaint.setStyle(Paint.Style.FILL);
         editHint.setColor(withAlpha(cText, 200));
         editHint.setTextSize(14 * density);
@@ -163,10 +163,10 @@ public final class VirtualMouseOverlay extends View {
         float r = btnRadius;
         float cx = btn.centerX();
         float cy = btn.centerY();
-        // 玻璃圆底
-        btnFill.setColor(cSurface85);
+        // 浅色圆钮（对齐 UU：亮底深图形，深浅画面上都醒目）；按下=强调蓝
+        btnFill.setColor(pressed ? cAccent : 0xD9EDF0F6);
         canvas.drawCircle(cx, cy, r, btnFill);
-        btnStroke.setColor(pressed ? cAccent : GLASS_STROKE);
+        btnStroke.setColor(pressed ? withAlpha(cAccent, 255) : 0x59FFFFFF);
         canvas.drawCircle(cx, cy, r, btnStroke);
 
         // 鼠标机身（圆角矩形）
@@ -174,7 +174,7 @@ public final class VirtualMouseOverlay extends View {
         float bh = r * 1.5f;
         bodyRect.set(cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2);
         float bodyR = bw * 0.42f;
-        bodyPaint.setColor(withAlpha(cText, 46));
+        bodyPaint.setColor(0x663A4152);   // 浅底上的深灰机身
         canvas.drawRoundRect(bodyRect, bodyR, bodyR, bodyPaint);
 
         // 强调半键：按下=满强调色，常态=45% 强调色提示本钮归属
@@ -183,18 +183,18 @@ public final class VirtualMouseOverlay extends View {
         setHalfRadii(side == 0, bodyR);
         halfPath.reset();
         halfPath.addRoundRect(scratchRect, halfRadii, Path.Direction.CW);
-        halfPaint.setColor(pressed ? cAccent : withAlpha(cAccent, 115));
+        halfPaint.setColor(pressed ? 0xFFFFFFFF : 0x803B82F6);   // 按下白示按下，常态蓝示归属
         canvas.drawPath(halfPath, halfPaint);
 
         // 机身描边 + 中缝 + 滚轮
-        linePaint.setColor(withAlpha(cText, 120));
+        linePaint.setColor(0x8C3A4152);   // 浅底深灰描边/中缝
         canvas.drawRoundRect(bodyRect, bodyR, bodyR, linePaint);
         canvas.drawLine(cx, bodyRect.top + 2 * density, cx, bodyRect.bottom - 2 * density, linePaint);
         float ww = bw * 0.14f;
         float wh = bh * 0.2f;
         float wheelTop = bodyRect.top + bh * 0.1f;
         scratchRect.set(cx - ww / 2, wheelTop, cx + ww / 2, wheelTop + wh);
-        wheelPaint.setColor(withAlpha(cText, 210));
+        wheelPaint.setColor(0xE63A4152);   // 浅底深灰滚轮
         canvas.drawRoundRect(scratchRect, ww / 2, ww / 2, wheelPaint);
     }
 

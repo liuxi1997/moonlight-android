@@ -67,6 +67,7 @@ public final class HandleOverlay extends View {
     private final Paint subPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint gripPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.Path gripPath = new android.graphics.Path();
     private final Paint mousePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mouseWheelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -288,13 +289,22 @@ public final class HandleOverlay extends View {
         canvas.drawRoundRect(handleRect, handleWidth / 2, handleWidth / 2, handleFill);
         handleStroke.setColor(panelOpen || draggingHandle ? withAlpha(cAccent, 200) : GLASS_STROKE);
         canvas.drawRoundRect(handleRect, handleWidth / 2, handleWidth / 2, handleStroke);
-        // 中部呼吸条：暗示可拖动
-        float gripW = 4 * density;
-        float gripH = 34 * density;
-        gripRect.set(handleRect.centerX() - gripW / 2, handleCY - gripH / 2,
-                handleRect.centerX() + gripW / 2, handleCY + gripH / 2);
-        gripPaint.setColor(withAlpha(cText, draggingHandle ? 220 : 130));
-        canvas.drawRoundRect(gripRect, gripW / 2, gripW / 2, gripPaint);
+        // 上/下小三角（对齐 UU 把手：暗示可拖动方向）
+        float tw = 9 * density, th = 6 * density, gap = 5 * density;
+        float tcx = handleRect.centerX();
+        gripPaint.setColor(withAlpha(cText, draggingHandle ? 230 : 150));
+        gripPath.reset();
+        gripPath.moveTo(tcx, handleCY - gap - th);
+        gripPath.lineTo(tcx - tw / 2, handleCY - gap);
+        gripPath.lineTo(tcx + tw / 2, handleCY - gap);
+        gripPath.close();
+        canvas.drawPath(gripPath, gripPaint);
+        gripPath.reset();
+        gripPath.moveTo(tcx, handleCY + gap + th);
+        gripPath.lineTo(tcx - tw / 2, handleCY + gap);
+        gripPath.lineTo(tcx + tw / 2, handleCY + gap);
+        gripPath.close();
+        canvas.drawPath(gripPath, gripPaint);
     }
 
     /** 底部抽屉底：更实的暗底（对齐 UU 操作面板）+ 顶部状态行（标题 + 当前模式） */
