@@ -637,7 +637,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
         rdOverlays.add(vmOverlay);
 
         // 全键盘浮层：粘滞 Win/Ctrl/Alt/Shift + 数字/字母/F1-12（翻页）/导航键
-        keyboardOverlay = new com.limelight.pointerengine.KeyboardOverlay(this, conn);
+        keyboardOverlay = new com.limelight.pointerengine.KeyboardOverlay(this, conn, uiPrefs);
         keyboardOverlay.setVisible(false);
         rdOverlays.add(keyboardOverlay);
 

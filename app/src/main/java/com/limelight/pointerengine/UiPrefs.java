@@ -86,6 +86,15 @@ public final class UiPrefs {
     }
 
     /** 把手 Y 位置（占屏高比例 0-1），横竖屏各一份 */
+    /** 键盘浮层 Y 偏移（面板底部相对屏幕底部的上移量 px，横竖屏各存；0=贴底） */
+    public float getKbOffsetY(boolean landscape) {
+        return sp.getFloat(landscape ? "kb_offset_land" : "kb_offset_port", 0f);
+    }
+
+    public void setKbOffsetY(boolean landscape, float offsetY) {
+        sp.edit().putFloat(landscape ? "kb_offset_land" : "kb_offset_port", offsetY).apply();
+    }
+
     public float getHandleYRatio(boolean landscape) {
         return sp.getFloat(landscape ? "handle_y_land" : "handle_y_port", 0.5f);
     }

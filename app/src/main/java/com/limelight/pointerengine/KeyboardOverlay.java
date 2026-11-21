@@ -163,9 +163,16 @@ public final class KeyboardOverlay extends View {
     private final Map<Integer, Byte> pressedModifiers = new HashMap<>();
 
     private float keyH, panelH, pad, keyGap, keyRadius;
+    private float offsetY;             // 面板底部相对屏幕底部的上移量（拖动把手调整，横竖屏各存）
+    private boolean draggingKb = false;
+    private float dragKbStartY = 0, dragKbOriginY = 0;
+    private static final float GRIP_H_DP = 18f;
 
-    public KeyboardOverlay(Context context, NvConnection conn) {
+    private final com.limelight.pointerengine.UiPrefs prefs;
+
+    public KeyboardOverlay(Context context, NvConnection conn, com.limelight.pointerengine.UiPrefs prefs) {
         super(context);
+        this.prefs = prefs;
         this.conn = conn;
         float d = context.getResources().getDisplayMetrics().density;
         pad = PAD_DP * d;
@@ -241,6 +248,19 @@ public final class KeyboardOverlay extends View {
         float maxPanelH = h * PANEL_MAX_RATIO;
         keyH = Math.min(KEY_H_MAX_DP * d, (maxPanelH - pad * 2 - keyGap * (rows - 1)) / rows);
         panelH = rows * keyH + (rows - 1) * keyGap + pad * 2;
+        offsetY = Math.min(prefs.getKbOffsetY(w > h), Math.max(0f, h - panelH));   // 尺寸变化后夹取合法范围
+    }
+
+    /** 面板顶部 y（含可拖动偏移；0 偏移时 = getHeight() - panelH） */
+    private float panelTop() {
+        return getHeight() - panelH - offsetY;
+    }
+
+    /** 拖动把手区（面板顶边上方全宽条） */
+    private boolean inGrip(float x, float y) {
+        float top = panelTop();
+        return x >= 0 && x <= getWidth() && y >= top - GRIP_H_DP * getResources().getDisplayMetrics().density
+                && y <= top;
     }
 
     private void layoutKey(int rowIndex, int colIndex, RectF out) {
@@ -253,16 +273,16 @@ public final class KeyboardOverlay extends View {
             left += row[i].weight / weightSum * (getWidth() - pad * 2 - (row.length - 1) * keyGap) + keyGap;
         }
         float keyW = row[colIndex].weight / weightSum * (getWidth() - pad * 2 - (row.length - 1) * keyGap);
-        float top = getHeight() - panelH + pad + rowIndex * (keyH + keyGap);
+        float top = panelTop() + pad + rowIndex * (keyH + keyGap);
         out.set(left, top, left + keyW, top + keyH);
     }
 
     /** 命中检测：返回 {row, col}，未命中返回 null（面板外 = 透传区） */
     private int[] hitKey(float x, float y) {
-        if (!visible || x < 0 || x > getWidth() || y < getHeight() - panelH || y > getHeight()) {
+        if (!visible || x < 0 || x > getWidth() || y < panelTop() || y > panelTop() + panelH) {
             return null;
         }
-        float relY = y - (getHeight() - panelH) - pad;
+        float relY = y - panelTop() - pad;
         int row = (int) ((relY + keyGap) / (keyH + keyGap));
         if (row < 0 || row >= pageRows().length) {
             return null;
@@ -363,6 +383,13 @@ public final class KeyboardOverlay extends View {
         }
         int actionMasked = event.getActionMasked();
         if (actionMasked == MotionEvent.ACTION_DOWN) {
+            // 拖动把手优先：面板顶边上方全宽条（GONE 态不布局，尺寸以当前 view 为准）
+            if (inGrip(event.getX(), event.getY()) && visible) {
+                draggingKb = true;
+                dragKbStartY = event.getY();
+                dragKbOriginY = event.getY();
+                return true;
+            }
             int[] hit = hitKey(event.getX(), event.getY());
             android.util.Log.d("rd_ui", "kb DOWN at " + (int) event.getX() + "," + (int) event.getY()
                     + " hit=" + (hit == null ? "null" : hit[0] + "," + hit[1])
@@ -371,6 +398,24 @@ public final class KeyboardOverlay extends View {
                 return false;   // 面板外透传
             }
             onKeyDown(event.getPointerId(0), hit);
+            invalidate();
+            return true;
+        }
+
+        if (actionMasked == MotionEvent.ACTION_MOVE && draggingKb) {
+            float d = getResources().getDisplayMetrics().density;
+            float maxUp = getHeight() - panelH - GRIP_H_DP * d;   // 面板顶不低于屏幕顶
+            offsetY = Math.max(0f, Math.min(maxUp, offsetY + (dragKbStartY - event.getY())));
+            dragKbStartY = event.getY();
+            prefs.setKbOffsetY(getWidth() > getHeight(), offsetY);
+            invalidate();
+            return true;
+        }
+
+        if ((actionMasked == MotionEvent.ACTION_UP || actionMasked == MotionEvent.ACTION_CANCEL)
+                && draggingKb) {
+            draggingKb = false;
+            android.util.Log.d("rd_ui", "kb moved offsetY=" + (int) offsetY);
             invalidate();
             return true;
         }
